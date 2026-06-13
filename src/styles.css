@@ -35,6 +35,21 @@ button {
   cursor: pointer;
   min-height: 38px;
   padding: 0 14px;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    filter 120ms ease,
+    border-color 120ms ease;
+  will-change: transform;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.97);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.28);
 }
 
 button:disabled {
@@ -282,6 +297,13 @@ button:disabled {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.priority-hint {
+  margin: -4px 0 12px;
+  color: #9fb0c6;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .item-list {

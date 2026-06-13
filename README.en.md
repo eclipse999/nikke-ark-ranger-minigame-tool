@@ -19,11 +19,11 @@ Deployed on Cloudflare Pages:
 
 - **9×9 Board** — Click or drag across cells to mark unavailable cells (x) as available, with reset and fill-all shortcuts
 - **P01–P15 Complete Items** — All 15 item types, auto-generating 0°/90°/180°/270° rotated shapes with deduplication
-- **Item Priority 1–5** — Each item can be assigned a priority; when space is tight, higher-priority items are preferred
+- **Item Priority 1–5** — Each item can be assigned a priority; higher numbers have higher weight and are preferred when space is tight
 - **Must-use Items** — Mark selected items as must-use; when placements conflict, the solver prioritizes satisfying must-use items and reports whether they were all placed
-- **Unplaced Item Summary** — Shows selected item area, placement ratio, unplaced item counts, and priority score so trade-offs are visible
+- **Unplaced Item Summary** — Shows which items were placed and which could not fit, so trade-offs are easy to review
 - **Backtracking Solver** — Uses a placement cache and pivot-cell DFS, with conservative pruning and a configurable time limit (default 1 second)
-- **Multiple Solutions** — Retains up to 3 best solutions, switchable in the results panel
+- **Best Placement View** — Shows the best placement for the current scoring order in the results panel
 - **Bilingual UI** — Traditional Chinese / English, with `?lang=en` URL parameter for default language; switches instantly
 - **Runs Locally** — Pure frontend, no backend required, data never leaves the browser
 
@@ -43,9 +43,9 @@ Open your browser at `http://localhost:5173`.
 
 1. **Set up the board** — Click or drag cells to mark them as available; or use "Fill All" / "Reset" buttons
 2. **Enter quantities** — Fill in how many of each item you have in the center panel
-3. **Set trade-offs** — Priority defaults to 1 and can be raised to 5; check "Must-use" to ask the solver to prefer keeping that item
+3. **Set trade-offs** — Priority defaults to 1 and can be raised to 5; higher numbers have higher weight and are kept first when space is tight. Check "Must-use" to ask the solver to prefer keeping that item
 4. **Run the solver** — Click "Optimize"; the solver finds the best placement it can within the time limit
-5. **Review results** — The right panel shows usable cells, filled cells, selected item area, placement ratio, utilization, priority score, must-use status, and unplaced items. Use arrow buttons to switch between candidate solutions
+5. **Review results** — The right panel shows usable cells, filled cells, item placement rate, inventory utilization, must-use status, placed items, and unplaced items
 6. **Switch language** — Use the language dropdown at the top right
 
 ## Commands
@@ -82,7 +82,7 @@ src/
 
 - Before search, the solver builds a legal placement cache for the current board, excluding out-of-bounds placements and placements that cover unavailable cells
 - It uses pivot-cell DFS: each step selects an unprocessed usable cell, tries legal placements covering that cell, and also keeps a skip branch for leaving that cell empty
-- Candidate solutions are ordered by must-use completion, priority score, filled cells, unplaced item count, and a stable signature
+- The best placement is ordered by must-use completion, priority weight, filled cells, unplaced item count, and a stable signature; the UI shows only the top result
 - When selected item area is less than or equal to usable cells, the target filled cells equal the selected item area; when selected item area exceeds usable cells, the target filled cells equal usable cells
 - The solver still has a time limit (UI default: 1 second). Extreme cases may return the best solution found within the time limit. Only when `provenOptimal` is `true` has the search completed and proven the best result for the current scoring order
 

@@ -194,10 +194,9 @@ function App() {
   const [priorityByItemId, setPriorityByItemId] = useState<Record<string, number>>(() => Object.fromEntries(items.map((item) => [item.id, 1])));
   const [mustUseItemIds, setMustUseItemIds] = useState<string[]>([]);
   const [result, setResult] = useState<SolverResult | null>(null);
-  const [solutionIndex, setSolutionIndex] = useState(0);
   const t = messages[locale];
   const usableCells = useMemo(() => countUsableCells(board), [board]);
-  const currentSolution = result?.solutions[solutionIndex] ?? null;
+  const currentSolution = result?.solutions[0] ?? null;
   const mustUseSet = useMemo(() => new Set(mustUseItemIds), [mustUseItemIds]);
 
   const usedCounts = useMemo(() => {
@@ -215,14 +214,12 @@ function App() {
       setMustUseItemIds((current) => current.filter((currentItemId) => currentItemId !== itemId));
     }
     setResult(null);
-    setSolutionIndex(0);
   }
 
   function updatePriority(itemId: string, value: string) {
     const nextValue = Math.min(5, Math.max(1, Math.floor(Number(value) || 1)));
     setPriorityByItemId((current) => ({ ...current, [itemId]: nextValue }));
     setResult(null);
-    setSolutionIndex(0);
   }
 
   function toggleMustUse(itemId: string, checked: boolean) {
@@ -233,7 +230,6 @@ function App() {
       return current.filter((currentItemId) => currentItemId !== itemId);
     });
     setResult(null);
-    setSolutionIndex(0);
   }
 
   function toggleCell(row: number, col: number) {
@@ -243,7 +239,6 @@ function App() {
       return next;
     });
     setResult(null);
-    setSolutionIndex(0);
   }
 
   function bulkOpenCells(cells: { row: number; col: number }[]) {
@@ -259,39 +254,33 @@ function App() {
       return changed ? next : current;
     });
     setResult(null);
-    setSolutionIndex(0);
   }
 
   function runSolver() {
-    const nextResult = solveInventory(board, counts, { maxSolutions: 3, timeLimitMs: 1000, priorityByItemId, mustUseItemIds });
+    const nextResult = solveInventory(board, counts, { maxSolutions: 1, timeLimitMs: 1000, priorityByItemId, mustUseItemIds });
     setResult(nextResult);
-    setSolutionIndex(0);
   }
 
   function resetBoard() {
     setBoard(createDefaultBoard());
     setResult(null);
-    setSolutionIndex(0);
   }
 
   function makeFullBoard() {
     setBoard(createFullBoard());
     setResult(null);
-    setSolutionIndex(0);
   }
 
   function clearItems() {
     setCounts(Object.fromEntries(items.map((item) => [item.id, 0])));
     setMustUseItemIds([]);
     setResult(null);
-    setSolutionIndex(0);
   }
 
   function resetPriorities() {
     setPriorityByItemId(Object.fromEntries(items.map((item) => [item.id, 1])));
     setMustUseItemIds([]);
     setResult(null);
-    setSolutionIndex(0);
   }
 
 
@@ -343,7 +332,7 @@ function App() {
               <button className="primary-button compact-button" type="button" onClick={clearItems}>
                 {t.clearItems}
               </button>
-              <button className="compact-button" type="button" onClick={resetPriorities}>
+              <button className="primary-button compact-button" type="button" onClick={resetPriorities}>
                 {t.resetPriorities}
               </button>
               <button className="primary-button compact-button" type="button" onClick={runSolver}>
@@ -351,6 +340,7 @@ function App() {
               </button>
             </div>
           </div>
+          <p className="priority-hint">{t.priorityHint}</p>
           <div className="item-list">
             {items.map((item) => (
               <article className="item-row" key={item.id}>
@@ -411,20 +401,12 @@ function App() {
                   <strong>{result.bestFilledCells}</strong>
                 </div>
                 <div>
-                  <span>{t.selectedItemArea}</span>
-                  <strong>{result.selectedItemArea}</strong>
-                </div>
-                <div>
                   <span>{t.placementRatio}</span>
                   <strong>{Math.round(result.selectedPlacementRatio * 1000) / 10}%</strong>
                 </div>
                 <div>
                   <span>{t.utilization}</span>
                   <strong>{Math.round(result.utilization * 1000) / 10}%</strong>
-                </div>
-                <div>
-                  <span>{t.priorityScore}</span>
-                  <strong>{result.priorityScore}</strong>
                 </div>
               </div>
               <div className={`result-alert ${result.mustUseSatisfied ? 'satisfied' : 'warning'}`}>
@@ -442,25 +424,6 @@ function App() {
                 placements={currentSolution.placements}
                 labels={{ available: t.available, unavailable: t.unavailable, occupied: t.occupied }}
               />
-              <div className="solution-controls">
-                <button
-                  type="button"
-                  disabled={solutionIndex === 0}
-                  onClick={() => setSolutionIndex((index) => Math.max(0, index - 1))}
-                >
-                  {t.previous}
-                </button>
-                <span>
-                  {t.solution} {solutionIndex + 1}/{result.solutions.length}
-                </span>
-                <button
-                  type="button"
-                  disabled={solutionIndex >= result.solutions.length - 1}
-                  onClick={() => setSolutionIndex((index) => Math.min(result.solutions.length - 1, index + 1))}
-                >
-                  {t.next}
-                </button>
-              </div>
               <div className="usage-summary">
                 <h3>{t.usedItems}</h3>
                 <div className="usage-list">

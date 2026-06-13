@@ -11,6 +11,7 @@ type Messages = {
   clearItems: string;
   resetPriorities: string;
   solve: string;
+  priorityHint: string;
   language: string;
   quantity: string;
   priority: string;
@@ -21,16 +22,11 @@ type Messages = {
   noUnusedItems: string;
   usableCells: string;
   filledCells: string;
-  selectedItemArea: string;
   placementRatio: string;
-  priorityScore: string;
   mustUseSatisfied: string;
   mustUseMissing: string;
   utilization: string;
   noResult: string;
-  solution: string;
-  previous: string;
-  next: string;
   provenOptimal: string;
   timeBest: string;
   searchedNodes: string;
@@ -52,26 +48,22 @@ export const messages: Record<Locale, Messages> = {
     clearItems: '清空道具',
     resetPriorities: '重置優先權',
     solve: '執行最佳化',
+    priorityHint: '優先權數字越大越優先；空間不足時會偏好權重較高的道具。',
     language: '語言',
     quantity: '數量',
-    priority: '優先',
+    priority: '優先權',
     mustUse: '必用',
     rotations: '旋轉',
     usedItems: '使用數量',
     unusedItems: '未放入道具',
     noUnusedItems: '所有所選道具皆已放入。',
     usableCells: '可用格',
-    filledCells: '填入格',
-    selectedItemArea: '所選格',
-    placementRatio: '安置率',
-    priorityScore: '優先分',
+    filledCells: '已填入',
+    placementRatio: '道具放入率',
     mustUseSatisfied: '必用道具皆已放入',
     mustUseMissing: '必用道具未完全放入',
-    utilization: '利用率',
+    utilization: '背包使用率',
     noResult: '尚未計算，或目前沒有可擺放道具。',
-    solution: '解法',
-    previous: '上一個',
-    next: '下一個',
     provenOptimal: '已證明最佳',
     timeBest: '時間內最佳',
     searchedNodes: '搜尋節點',
@@ -91,6 +83,7 @@ export const messages: Record<Locale, Messages> = {
     clearItems: 'Clear Items',
     resetPriorities: 'Reset Priority',
     solve: 'Optimize',
+    priorityHint: 'Higher priority numbers are preferred when space is limited.',
     language: 'Language',
     quantity: 'Qty',
     priority: 'Priority',
@@ -101,16 +94,11 @@ export const messages: Record<Locale, Messages> = {
     noUnusedItems: 'All selected items were placed.',
     usableCells: 'Usable',
     filledCells: 'Filled',
-    selectedItemArea: 'Selected',
-    placementRatio: 'Placement',
-    priorityScore: 'Priority Score',
+    placementRatio: 'Items Placed',
     mustUseSatisfied: 'All must-use items placed',
     mustUseMissing: 'Must-use items missing',
     utilization: 'Utilization',
     noResult: 'Run the optimizer, or add items that can be placed.',
-    solution: 'Solution',
-    previous: 'Previous',
-    next: 'Next',
     provenOptimal: 'Proven optimal',
     timeBest: 'Best within time',
     searchedNodes: 'Searched nodes',
