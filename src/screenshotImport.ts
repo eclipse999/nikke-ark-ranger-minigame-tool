@@ -107,29 +107,32 @@ export function inferItemCountsFromOccupiedGrid(occupied: boolean[][]): { counts
 
   let bestCounts: Record<string, number> = {};
   let bestCovered = 0;
+  let bestPieceCount = Number.POSITIVE_INFINITY;
   let searchedNodes = 0;
   const maxNodes = 25000;
   const workingCounts: Record<string, number> = {};
 
   function remember(remainingMask: bigint) {
     const covered = countBits(targetMask) - countBits(remainingMask);
-    if (covered > bestCovered) {
+    const pieceCount = Object.values(workingCounts).reduce((total, count) => total + count, 0);
+    if (covered > bestCovered || (covered === bestCovered && pieceCount < bestPieceCount)) {
       bestCovered = covered;
+      bestPieceCount = pieceCount;
       bestCounts = { ...workingCounts };
     }
   }
 
-  function dfs(remainingMask: bigint): boolean {
+  function dfs(remainingMask: bigint): void {
     searchedNodes += 1;
     if (searchedNodes > maxNodes || remainingMask === 0n) {
       remember(remainingMask);
-      return remainingMask === 0n;
+      return;
     }
 
     const cell = firstSetCell(remainingMask);
     if (!cell) {
       remember(remainingMask);
-      return true;
+      return;
     }
 
     const cellCandidates = byCell.get(`${cell.row},${cell.col}`) ?? [];
@@ -139,9 +142,7 @@ export function inferItemCountsFromOccupiedGrid(occupied: boolean[][]): { counts
       }
 
       workingCounts[candidate.itemId] = (workingCounts[candidate.itemId] ?? 0) + 1;
-      if (dfs(remainingMask & ~candidate.mask)) {
-        return true;
-      }
+      dfs(remainingMask & ~candidate.mask);
       workingCounts[candidate.itemId] -= 1;
       if (workingCounts[candidate.itemId] === 0) {
         delete workingCounts[candidate.itemId];
@@ -149,7 +150,6 @@ export function inferItemCountsFromOccupiedGrid(occupied: boolean[][]): { counts
     }
 
     remember(remainingMask);
-    return false;
   }
 
   dfs(targetMask);
@@ -182,6 +182,33 @@ function isBrightFramePixel(imageData: ImageData, x: number, y: number): boolean
   return luminance(r, g, b) > 185 && saturation(r, g, b) < 0.32;
 }
 
+function findBrightRun(imageData: ImageData, y: number): { left: number; right: number } | null {
+  const points: number[] = [];
+  for (let x = 0; x < imageData.width; x += 1) {
+    for (let scanY = Math.max(0, y - 3); scanY <= Math.min(imageData.height - 1, y + 3); scanY += 1) {
+      if (isBrightFramePixel(imageData, x, scanY)) {
+        points.push(x);
+        break;
+      }
+    }
+  }
+
+  const runs: Array<{ left: number; right: number; count: number }> = [];
+  points.forEach((x) => {
+    const lastRun = runs.at(-1);
+    if (!lastRun || x - lastRun.right > 4) {
+      runs.push({ left: x, right: x, count: 1 });
+      return;
+    }
+
+    lastRun.right = x;
+    lastRun.count += 1;
+  });
+
+  const widestRun = runs.sort((a, b) => b.count - a.count)[0];
+  return widestRun && widestRun.count > imageData.width * 0.35 ? widestRun : null;
+}
+
 function findInventoryGridBox(imageData: ImageData): { box: GridBox; confidence: number } {
   const { width, height } = imageData;
   const scanTop = Math.floor(height * 0.1);
@@ -203,22 +230,10 @@ function findInventoryGridBox(imageData: ImageData): { box: GridBox; confidence:
   const wideRowThreshold = (maxX - minX) / 5;
   const strongRows = rowScores.filter((row) => row.score > wideRowThreshold);
   const topRow = strongRows[0]?.y ?? Math.floor(height * 0.12);
-  const columnScanBottom = Math.min(scanBottom, Math.floor(topRow + width * 0.7));
 
-  const columnScores: Array<{ x: number; score: number }> = [];
-  for (let x = minX; x < maxX; x += 2) {
-    let score = 0;
-    for (let y = topRow; y < columnScanBottom; y += 3) {
-      if (isBrightFramePixel(imageData, x, y)) {
-        score += 1;
-      }
-    }
-    columnScores.push({ x, score });
-  }
-
-  const strongColumns = columnScores.filter((column) => column.score > Math.max(24, (columnScanBottom - topRow) / 16));
-  const leftColumn = strongColumns[0]?.x ?? Math.floor(width * 0.18);
-  const rightColumn = strongColumns.at(-1)?.x ?? Math.floor(width * 0.82);
+  const horizontalRun = findBrightRun(imageData, topRow);
+  const leftColumn = horizontalRun?.left ?? Math.floor(width * 0.18);
+  const rightColumn = horizontalRun?.right ?? Math.floor(width * 0.82);
   const panelWidth = Math.max(1, rightColumn - leftColumn);
   const inset = panelWidth * 0.055;
   const size = panelWidth - inset * 2;
@@ -227,7 +242,7 @@ function findInventoryGridBox(imageData: ImageData): { box: GridBox; confidence:
     y: topRow + inset,
     size,
   };
-  const confidence = strongRows.length > 0 && strongColumns.length >= 2 ? 0.72 : 0.42;
+  const confidence = strongRows.length > 0 && horizontalRun ? 0.78 : 0.42;
 
   return { box, confidence };
 }
@@ -243,6 +258,8 @@ function sampleCell(imageData: ImageData, box: GridBox, row: number, col: number
   let totalSaturation = 0;
   let vividPixels = 0;
   let brightPixels = 0;
+  let neutralPixels = 0;
+  let brightNeutralPixels = 0;
   let samples = 0;
 
   for (let y = fromY; y <= toY; y += 3) {
@@ -261,6 +278,12 @@ function sampleCell(imageData: ImageData, box: GridBox, row: number, col: number
       if (luma > 125) {
         brightPixels += 1;
       }
+      if (luma > 42 && luma < 115 && sat < 0.22) {
+        neutralPixels += 1;
+      }
+      if (luma > 95 && sat < 0.35) {
+        brightNeutralPixels += 1;
+      }
       samples += 1;
     }
   }
@@ -270,6 +293,8 @@ function sampleCell(imageData: ImageData, box: GridBox, row: number, col: number
     saturation: samples === 0 ? 0 : totalSaturation / samples,
     vividRatio: samples === 0 ? 0 : vividPixels / samples,
     brightRatio: samples === 0 ? 0 : brightPixels / samples,
+    neutralRatio: samples === 0 ? 0 : neutralPixels / samples,
+    brightNeutralRatio: samples === 0 ? 0 : brightNeutralPixels / samples,
   };
 }
 
@@ -287,7 +312,12 @@ export function detectInventoryGrid(imageData: ImageData): {
     rowSamples.map((sample) => sample.vividRatio > 0.08 || sample.brightRatio > 0.2 || (sample.saturation > 0.22 && sample.luminance > 58)),
   );
   const board = samples.map((rowSamples, row) =>
-    rowSamples.map((sample, col) => occupied[row][col] || sample.luminance > 20 || sample.brightRatio > 0.015),
+    rowSamples.map(
+      (sample, col) =>
+        occupied[row][col] ||
+        (sample.neutralRatio > 0.12 && sample.luminance > 45) ||
+        sample.brightNeutralRatio > 0.08,
+    ),
   );
   const filledCells = occupied.flat().filter(Boolean).length;
   const usableCells = board.flat().filter(Boolean).length;

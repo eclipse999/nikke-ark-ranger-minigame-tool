@@ -47,5 +47,29 @@ describe('screenshot import', () => {
     expect(result.counts.P12).toBe(1);
     expect(result.counts.P11).toBe(0);
   });
-});
 
+  it('matches adjacent large items instead of splitting them into narrow items', () => {
+    const grid = emptyGrid();
+    fill(grid, [
+      [3, 4],
+      [3, 5],
+      [3, 6],
+      [4, 2],
+      [4, 3],
+      [4, 4],
+      [4, 5],
+      [5, 2],
+      [5, 3],
+      [5, 4],
+      [5, 5],
+    ]);
+
+    const result = inferItemCountsFromOccupiedGrid(grid);
+
+    expect(result.uncoveredCells).toBe(0);
+    expect(result.counts.P15).toBe(1);
+    expect((result.counts.P04 ?? 0) + (result.counts.P14 ?? 0)).toBe(1);
+    expect(result.counts.P09).toBe(0);
+    expect(result.counts.P10).toBe(0);
+  });
+});
