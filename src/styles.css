@@ -288,7 +288,12 @@ button:disabled {
 
 
 .compact-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 42px;
+  line-height: 1.15;
+  text-align: center;
   white-space: nowrap;
 }
 
@@ -712,7 +717,9 @@ button:disabled {
 
   .compact-button {
     min-width: 0;
-    padding-inline: 10px;
+    padding-inline: 6px;
+    overflow-wrap: anywhere;
+    white-space: normal;
   }
 
   .item-list {
