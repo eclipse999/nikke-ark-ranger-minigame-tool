@@ -34,8 +34,7 @@ describe('item colors', () => {
     });
   });
 
-  it('keeps P01 and P11 clearly distinguishable', () => {
-    expect(hueDistance(parseHue(itemColors.get('P01')!), parseHue(itemColors.get('P11')!))).toBeGreaterThanOrEqual(20);
+  it('keeps P11 and P12 clearly distinguishable', () => {
+    expect(hueDistance(parseHue(itemColors.get('P11')!), parseHue(itemColors.get('P12')!))).toBeGreaterThanOrEqual(40);
   });
 });
-

@@ -39,10 +39,32 @@ function BoardGrid({
   labels: { available: string; unavailable: string; occupied: string };
 }) {
   const occupied = useMemo(() => {
-    const map = new Map<string, { placement: Placement; color: string }>();
+    const map = new Map<string, { placement: Placement; color: string; edgeClassName: string; instanceClassName: string }>();
+    const copyIndexes = new Map<string, number>();
+
     placements?.forEach((placement) => {
+      const copyIndex = copyIndexes.get(placement.itemId) ?? 0;
+      copyIndexes.set(placement.itemId, copyIndex + 1);
+
+      const placementCells = new Set(placement.cells.map((cell) => `${cell.row},${cell.col}`));
+      const instanceClassName = copyIndex % 2 === 0 ? 'item-instance-a' : 'item-instance-b';
+
       placement.cells.forEach((cell) => {
-        map.set(`${cell.row},${cell.col}`, { placement, color: getItemColor(placement.itemId) });
+        const edgeClassName = [
+          placementCells.has(`${cell.row - 1},${cell.col}`) ? '' : 'piece-edge-top',
+          placementCells.has(`${cell.row},${cell.col + 1}`) ? '' : 'piece-edge-right',
+          placementCells.has(`${cell.row + 1},${cell.col}`) ? '' : 'piece-edge-bottom',
+          placementCells.has(`${cell.row},${cell.col - 1}`) ? '' : 'piece-edge-left',
+        ]
+          .filter(Boolean)
+          .join(' ');
+
+        map.set(`${cell.row},${cell.col}`, {
+          placement,
+          color: getItemColor(placement.itemId),
+          edgeClassName,
+          instanceClassName,
+        });
       });
     });
     return map;
@@ -58,7 +80,7 @@ function BoardGrid({
           return (
             <button
               key={`${row}-${col}`}
-              className={`board-cell ${available ? 'available' : 'blocked'} ${placed ? 'placed' : ''}`}
+              className={`board-cell ${available ? 'available' : 'blocked'} ${placed ? `placed ${placed.edgeClassName} ${placed.instanceClassName}` : ''}`}
               onClick={() => onToggle?.(row, col)}
               style={placed ? { backgroundColor: placed.color } : undefined}
               type="button"
