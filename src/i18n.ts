@@ -10,6 +10,11 @@ type Messages = {
   fullBoard: string;
   clearItems: string;
   solve: string;
+  importScreenshot: string;
+  importingScreenshot: string;
+  importApplied: string;
+  importFailed: string;
+  importReviewHint: string;
   language: string;
   quantity: string;
   rotations: string;
@@ -40,6 +45,11 @@ export const messages: Record<Locale, Messages> = {
     fullBoard: '全部可用',
     clearItems: '清空道具',
     solve: '執行最佳化',
+    importScreenshot: '匯入截圖',
+    importingScreenshot: '辨識中...',
+    importApplied: '已套用截圖辨識結果',
+    importFailed: '截圖匯入失敗，請確認圖片格式後再試一次。',
+    importReviewHint: '請檢查棋盤與道具數量，必要時手動修正。',
     language: '語言',
     quantity: '數量',
     rotations: '旋轉',
@@ -68,6 +78,11 @@ export const messages: Record<Locale, Messages> = {
     fullBoard: 'All Available',
     clearItems: 'Clear Items',
     solve: 'Optimize',
+    importScreenshot: 'Import Screenshot',
+    importingScreenshot: 'Reading...',
+    importApplied: 'Screenshot import applied',
+    importFailed: 'Screenshot import failed. Check the image format and try again.',
+    importReviewHint: 'Review the board and item counts, then adjust manually if needed.',
     language: 'Language',
     quantity: 'Qty',
     rotations: 'Rotations',
