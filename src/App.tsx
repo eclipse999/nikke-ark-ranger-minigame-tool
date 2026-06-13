@@ -47,7 +47,7 @@ function BoardGrid({
       copyIndexes.set(placement.itemId, copyIndex + 1);
 
       const placementCells = new Set(placement.cells.map((cell) => `${cell.row},${cell.col}`));
-      const instanceClassName = copyIndex % 2 === 0 ? 'item-instance-a' : 'item-instance-b';
+      const instanceClassName = `item-instance-${copyIndex % 4}`;
 
       placement.cells.forEach((cell) => {
         const edgeClassName = [
