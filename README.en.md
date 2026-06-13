@@ -10,10 +10,10 @@ Enter the board's available cells and item quantities, and the solver automatica
 
 ## Online Version
 
-Deployed on Netlify:
+Deployed on Cloudflare Pages:
 
-- [English](https://nikke-ark-ranger-minigame-tool.netlify.app/?lang=en)
-- [繁體中文](https://nikke-ark-ranger-minigame-tool.netlify.app/)
+- [English](https://nikke-ark-ranger-minigame-tool.pages.dev/?lang=en)
+- [繁體中文](https://nikke-ark-ranger-minigame-tool.pages.dev/)
 
 ## Features
 

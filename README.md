@@ -10,10 +10,10 @@
 
 ## 線上版本
 
-已部署到 Netlify，可直接使用：
+已部署到 Cloudflare Pages，可直接使用：
 
-- [繁體中文](https://nikke-ark-ranger-minigame-tool.netlify.app/)
-- [English](https://nikke-ark-ranger-minigame-tool.netlify.app/?lang=en)
+- [繁體中文](https://nikke-ark-ranger-minigame-tool.pages.dev/)
+- [English](https://nikke-ark-ranger-minigame-tool.pages.dev/?lang=en)
 
 ## 功能
 
