@@ -11,7 +11,7 @@ export const itemColors = new Map<string, string>([
   ['P08', 'hsl(332 78% 60%)'],
   ['P09', 'hsl(108 55% 48%)'],
   ['P10', 'hsl(218 78% 58%)'],
-  ['P11', 'hsl(24 38% 48%)'],
+  ['P11', 'hsl(260 25% 58%)'],
   ['P12', 'hsl(246 58% 62%)'],
   ['P13', 'hsl(70 70% 48%)'],
   ['P14', 'hsl(315 70% 58%)'],
@@ -25,4 +25,3 @@ export function getItemColor(itemId: string): string {
 export function getMissingItemColorIds(): string[] {
   return items.map((item) => item.id).filter((itemId) => !itemColors.has(itemId));
 }
-
