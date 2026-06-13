@@ -74,7 +74,8 @@ function BoardGrid({
   const [selection, setSelection] = useState<{ start: { row: number; col: number }; end: { row: number; col: number } } | null>(null);
 
   function getCellFromEvent(event: React.PointerEvent<HTMLDivElement>): { row: number; col: number } | null {
-    const target = event.target as HTMLElement;
+    const pointerTarget = document.elementFromPoint(event.clientX, event.clientY);
+    const target = pointerTarget instanceof HTMLElement && event.currentTarget.contains(pointerTarget) ? pointerTarget : (event.target as HTMLElement);
     const cell = target.closest('[data-cell]') as HTMLElement | null;
     if (!cell) return null;
     const row = Number(cell.dataset.row);
@@ -103,6 +104,7 @@ function BoardGrid({
     event.preventDefault();
     const cell = getCellFromEvent(event);
     if (!cell) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
     setSelection({ start: cell, end: cell });
   }
 
@@ -119,6 +121,9 @@ function BoardGrid({
     event.preventDefault();
     const { start, end } = selection;
     setSelection(null);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
     if (start.row === end.row && start.col === end.col) {
       onToggle?.(start.row, start.col);
     } else {
@@ -131,6 +136,9 @@ function BoardGrid({
     event.preventDefault();
     const { start, end } = selection;
     setSelection(null);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
     if (start.row === end.row && start.col === end.col) {
       return;
     }
@@ -154,6 +162,7 @@ function BoardGrid({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerLeave}
+      onPointerCancel={handlePointerLeave}
       style={{ touchAction: 'none' }}
     >
       {board.flatMap((rowCells, row) =>
@@ -191,6 +200,7 @@ function App() {
   });
   const [board, setBoard] = useState<Board>(() => createDefaultBoard());
   const [counts, setCounts] = useState<Record<string, number>>(() => Object.fromEntries(items.map((item) => [item.id, 0])));
+  const [countInputs, setCountInputs] = useState<Record<string, string>>(() => Object.fromEntries(items.map((item) => [item.id, '0'])));
   const [priorityByItemId, setPriorityByItemId] = useState<Record<string, number>>(() => Object.fromEntries(items.map((item) => [item.id, 1])));
   const [mustUseItemIds, setMustUseItemIds] = useState<string[]>([]);
   const [result, setResult] = useState<SolverResult | null>(null);
@@ -209,7 +219,10 @@ function App() {
   }, [currentSolution]);
 
   function updateCount(itemId: string, value: string) {
-    const nextValue = Math.max(0, Math.floor(Number(value) || 0));
+    const digits = value.replace(/\D/g, '');
+    const displayValue = digits === '' ? '' : digits.replace(/^0+(?=\d)/, '');
+    const nextValue = displayValue === '' ? 0 : Math.max(0, Math.floor(Number(displayValue) || 0));
+    setCountInputs((current) => ({ ...current, [itemId]: displayValue }));
     setCounts((current) => ({ ...current, [itemId]: nextValue }));
     if (nextValue === 0) {
       setMustUseItemIds((current) => current.filter((currentItemId) => currentItemId !== itemId));
@@ -274,6 +287,7 @@ function App() {
 
   function clearItems() {
     setCounts(Object.fromEntries(items.map((item) => [item.id, 0])));
+    setCountInputs(Object.fromEntries(items.map((item) => [item.id, '0'])));
     setMustUseItemIds([]);
     setResult(null);
   }
@@ -355,7 +369,7 @@ function App() {
                     min="0"
                     inputMode="numeric"
                     type="number"
-                    value={counts[item.id] ?? 0}
+                    value={countInputs[item.id] ?? String(counts[item.id] ?? 0)}
                     onChange={(event) => updateCount(item.id, event.target.value)}
                   />
                 </label>
