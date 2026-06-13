@@ -308,8 +308,7 @@ button:disabled {
   border-color: transparent;
 }
 
-.stats span,
-.solver-note {
+.stats span {
   color: #9fb0c6;
   font-size: 12px;
 }
@@ -329,10 +328,6 @@ button:disabled {
   font-size: 13px;
   font-weight: 800;
   text-align: center;
-}
-
-.solver-note {
-  margin: 12px 0 0;
 }
 
 .empty-state {

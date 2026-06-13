@@ -203,7 +203,6 @@ function App() {
         <section className="panel result-panel">
           <div className="panel-heading">
             <h2>{t.results}</h2>
-            {result ? <span>{result.provenOptimal ? t.provenOptimal : t.timeBest}</span> : null}
           </div>
 
           {result && currentSolution ? (
@@ -246,9 +245,6 @@ function App() {
                   {t.next}
                 </button>
               </div>
-              <p className="solver-note">
-                {result.provenOptimal ? t.provenOptimal : t.timeBest} · {t.searchedNodes}: {result.searchedNodes.toLocaleString()}
-              </p>
             </>
           ) : (
             <p className="empty-state">{t.noResult}</p>
