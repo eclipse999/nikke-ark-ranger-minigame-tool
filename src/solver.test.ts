@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createDefaultBoard, createFullBoard } from './board';
 import { solveInventory } from './solver';
+import type { Board } from './types';
 
 describe('solver', () => {
   it('returns zero when no items are provided', () => {
@@ -23,5 +24,36 @@ describe('solver', () => {
   it('handles items that cannot fit', () => {
     const result = solveInventory(createDefaultBoard(), { P15: 1 }, { timeLimitMs: 100 });
     expect(result.bestFilledCells).toBe(6);
+  });
+
+  it('considers mid-priority cross items in a time-limited dense inventory', () => {
+    const board: Board = [
+      [false, false, true, true, true, true, true, true, true],
+      [false, false, true, true, true, true, true, true, true],
+      [false, false, true, true, true, true, true, true, true],
+      [false, false, true, true, true, true, true, true, true],
+      [false, false, true, true, true, true, true, true, true],
+      [false, false, true, true, true, true, true, true, true],
+      [true, true, true, true, true, true, true, true, true],
+      [true, true, true, true, true, true, true, true, true],
+      [true, true, true, true, true, true, true, true, true],
+    ];
+
+    const result = solveInventory(
+      board,
+      {
+        P01: 5,
+        P05: 1,
+        P09: 3,
+        P10: 1,
+        P11: 1,
+        P12: 2,
+        P13: 1,
+        P15: 2,
+      },
+      { maxSolutions: 3, timeLimitMs: 1000 },
+    );
+
+    expect(result.solutions.some((solution) => solution.placements.some((placement) => placement.itemId === 'P12'))).toBe(true);
   });
 });

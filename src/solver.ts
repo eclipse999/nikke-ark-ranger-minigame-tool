@@ -61,20 +61,32 @@ function placementMask(shape: Shape, row: number, col: number): bigint {
 }
 
 function collectPieceInstances(counts: Record<string, number>): PieceInstance[] {
+  const itemTypes = items
+    .map((item) => ({
+      itemId: item.id,
+      shapes: item.rotations,
+      area: item.rotations[0]?.area ?? 0,
+      count: Math.max(0, Math.floor(counts[item.id] ?? 0)),
+    }))
+    .filter((item) => item.count > 0)
+    .sort((a, b) => b.area - a.area || a.itemId.localeCompare(b.itemId));
+
+  const maxCount = Math.max(0, ...itemTypes.map((item) => item.count));
   const pieces: PieceInstance[] = [];
 
-  items.forEach((item) => {
-    const count = Math.max(0, Math.floor(counts[item.id] ?? 0));
-    for (let index = 0; index < count; index += 1) {
-      pieces.push({
-        itemId: item.id,
-        shapes: item.rotations,
-        area: item.rotations[0]?.area ?? 0,
-      });
-    }
-  });
+  for (let copyIndex = 0; copyIndex < maxCount; copyIndex += 1) {
+    itemTypes.forEach((item) => {
+      if (copyIndex < item.count) {
+        pieces.push({
+          itemId: item.itemId,
+          shapes: item.shapes,
+          area: item.area,
+        });
+      }
+    });
+  }
 
-  return pieces.sort((a, b) => b.area - a.area || a.itemId.localeCompare(b.itemId));
+  return pieces;
 }
 
 function remainingAreaSuffix(pieces: PieceInstance[]): number[] {
