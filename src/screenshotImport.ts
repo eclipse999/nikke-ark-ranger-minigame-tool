@@ -1,6 +1,5 @@
 import { BOARD_SIZE } from './board';
-import { items } from './items';
-import type { Board, Cell, Shape } from './types';
+import type { Board } from './types';
 
 type GridBox = {
   x: number;
@@ -8,157 +7,12 @@ type GridBox = {
   size: number;
 };
 
-type ItemCandidate = {
-  itemId: string;
-  shape: Shape;
-  row: number;
-  col: number;
-  mask: bigint;
-  area: number;
-};
-
 export type ScreenshotImportResult = {
   board: Board;
-  counts: Record<string, number>;
   confidence: {
     board: number;
-    items: number;
   };
-  warnings: string[];
 };
-
-function bitFor(row: number, col: number): bigint {
-  return 1n << BigInt(row * BOARD_SIZE + col);
-}
-
-function cellMask(cells: Cell[]): bigint {
-  return cells.reduce((mask, cell) => mask | bitFor(cell.row, cell.col), 0n);
-}
-
-function absoluteCells(shape: Shape, row: number, col: number): Cell[] {
-  return shape.cells.map((cell) => ({ row: row + cell.row, col: col + cell.col }));
-}
-
-function occupiedMaskFromGrid(occupied: boolean[][]): bigint {
-  let mask = 0n;
-
-  occupied.forEach((rowCells, row) => {
-    rowCells.forEach((filled, col) => {
-      if (filled) {
-        mask |= bitFor(row, col);
-      }
-    });
-  });
-
-  return mask;
-}
-
-function countBits(value: bigint): number {
-  let count = 0;
-  let current = value;
-
-  while (current > 0n) {
-    current &= current - 1n;
-    count += 1;
-  }
-
-  return count;
-}
-
-function firstSetCell(mask: bigint): Cell | null {
-  for (let row = 0; row < BOARD_SIZE; row += 1) {
-    for (let col = 0; col < BOARD_SIZE; col += 1) {
-      if ((mask & bitFor(row, col)) !== 0n) {
-        return { row, col };
-      }
-    }
-  }
-
-  return null;
-}
-
-export function inferItemCountsFromOccupiedGrid(occupied: boolean[][]): { counts: Record<string, number>; uncoveredCells: number } {
-  const targetMask = occupiedMaskFromGrid(occupied);
-  const candidates: ItemCandidate[] = [];
-
-  items.forEach((item) => {
-    item.rotations.forEach((shape) => {
-      for (let row = 0; row <= BOARD_SIZE - shape.height; row += 1) {
-        for (let col = 0; col <= BOARD_SIZE - shape.width; col += 1) {
-          const mask = cellMask(absoluteCells(shape, row, col));
-          if ((mask & targetMask) === mask) {
-            candidates.push({ itemId: item.id, shape, row, col, mask, area: shape.area });
-          }
-        }
-      }
-    });
-  });
-
-  const byCell = new Map<string, ItemCandidate[]>();
-  candidates.forEach((candidate) => {
-    candidate.shape.cells.forEach((cell) => {
-      const key = `${candidate.row + cell.row},${candidate.col + cell.col}`;
-      byCell.set(key, [...(byCell.get(key) ?? []), candidate]);
-    });
-  });
-  byCell.forEach((cellCandidates) => {
-    cellCandidates.sort((a, b) => b.area - a.area || a.itemId.localeCompare(b.itemId));
-  });
-
-  let bestCounts: Record<string, number> = {};
-  let bestCovered = 0;
-  let bestPieceCount = Number.POSITIVE_INFINITY;
-  let searchedNodes = 0;
-  const maxNodes = 25000;
-  const workingCounts: Record<string, number> = {};
-
-  function remember(remainingMask: bigint) {
-    const covered = countBits(targetMask) - countBits(remainingMask);
-    const pieceCount = Object.values(workingCounts).reduce((total, count) => total + count, 0);
-    if (covered > bestCovered || (covered === bestCovered && pieceCount < bestPieceCount)) {
-      bestCovered = covered;
-      bestPieceCount = pieceCount;
-      bestCounts = { ...workingCounts };
-    }
-  }
-
-  function dfs(remainingMask: bigint): void {
-    searchedNodes += 1;
-    if (searchedNodes > maxNodes || remainingMask === 0n) {
-      remember(remainingMask);
-      return;
-    }
-
-    const cell = firstSetCell(remainingMask);
-    if (!cell) {
-      remember(remainingMask);
-      return;
-    }
-
-    const cellCandidates = byCell.get(`${cell.row},${cell.col}`) ?? [];
-    for (const candidate of cellCandidates) {
-      if ((candidate.mask & remainingMask) !== candidate.mask) {
-        continue;
-      }
-
-      workingCounts[candidate.itemId] = (workingCounts[candidate.itemId] ?? 0) + 1;
-      dfs(remainingMask & ~candidate.mask);
-      workingCounts[candidate.itemId] -= 1;
-      if (workingCounts[candidate.itemId] === 0) {
-        delete workingCounts[candidate.itemId];
-      }
-    }
-
-    remember(remainingMask);
-  }
-
-  dfs(targetMask);
-
-  return {
-    counts: Object.fromEntries(items.map((item) => [item.id, bestCounts[item.id] ?? 0])),
-    uncoveredCells: countBits(targetMask) - bestCovered,
-  };
-}
 
 function pixelOffset(imageData: ImageData, x: number, y: number): number {
   return (y * imageData.width + x) * 4;
@@ -300,9 +154,7 @@ function sampleCell(imageData: ImageData, box: GridBox, row: number, col: number
 
 export function detectInventoryGrid(imageData: ImageData): {
   board: Board;
-  occupied: boolean[][];
   confidence: number;
-  warnings: string[];
 } {
   const { box, confidence } = findInventoryGridBox(imageData);
   const samples = Array.from({ length: BOARD_SIZE }, (_, row) =>
@@ -319,43 +171,17 @@ export function detectInventoryGrid(imageData: ImageData): {
         sample.brightNeutralRatio > 0.08,
     ),
   );
-  const filledCells = occupied.flat().filter(Boolean).length;
-  const usableCells = board.flat().filter(Boolean).length;
-  const warnings: string[] = [];
-
-  if (confidence < 0.6) {
-    warnings.push('無法高信心定位 9x9 道具欄，請確認匯入後的格子狀態。');
-  }
-  if (filledCells === 0) {
-    warnings.push('未偵測到已放置道具，請確認截圖是否包含上方道具欄。');
-  }
-  if (usableCells === BOARD_SIZE * BOARD_SIZE) {
-    warnings.push('目前判斷 9x9 格皆為可用；若遊戲實際尚未全開，請手動修正不可用格。');
-  }
-
-  return { board, occupied, confidence, warnings };
+  return { board, confidence };
 }
 
 export function importScreenshotImage(imageData: ImageData): ScreenshotImportResult {
   const detection = detectInventoryGrid(imageData);
-  const matched = inferItemCountsFromOccupiedGrid(detection.occupied);
-  const warnings = [...detection.warnings];
-
-  if (matched.uncoveredCells > 0) {
-    warnings.push(`有 ${matched.uncoveredCells} 個已佔用格無法對應到已知道具，請手動修正數量。`);
-  }
-
-  const occupiedCells = detection.occupied.flat().filter(Boolean).length;
-  const itemConfidence = occupiedCells === 0 ? 0 : Math.max(0.2, 1 - matched.uncoveredCells / occupiedCells);
 
   return {
     board: detection.board,
-    counts: matched.counts,
     confidence: {
       board: detection.confidence,
-      items: itemConfidence,
     },
-    warnings,
   };
 }
 

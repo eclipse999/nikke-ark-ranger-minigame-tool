@@ -1,75 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { inferItemCountsFromOccupiedGrid } from './screenshotImport';
+import { importScreenshotImage } from './screenshotImport';
 
-function emptyGrid(): boolean[][] {
-  return Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => false));
+function makeImageData(width: number, height: number): ImageData {
+  return {
+    width,
+    height,
+    colorSpace: 'srgb',
+    data: new Uint8ClampedArray(width * height * 4),
+  } as ImageData;
 }
 
-function fill(grid: boolean[][], cells: Array<[number, number]>) {
-  cells.forEach(([row, col]) => {
-    grid[row][col] = true;
-  });
+function setPixel(imageData: ImageData, x: number, y: number, r: number, g: number, b: number) {
+  const offset = (y * imageData.width + x) * 4;
+  imageData.data[offset] = r;
+  imageData.data[offset + 1] = g;
+  imageData.data[offset + 2] = b;
+  imageData.data[offset + 3] = 255;
 }
 
 describe('screenshot import', () => {
-  it('infers item counts from an occupied grid', () => {
-    const grid = emptyGrid();
-    fill(grid, [
-      [0, 0],
-      [0, 1],
-      [1, 0],
-      [1, 1],
-      [3, 3],
-      [4, 3],
-      [5, 3],
-    ]);
+  it('imports only the 9x9 board state without item counts', () => {
+    const imageData = makeImageData(100, 100);
+    for (let x = 12; x <= 88; x += 1) {
+      setPixel(imageData, x, 14, 230, 230, 230);
+    }
 
-    const result = inferItemCountsFromOccupiedGrid(grid);
+    const result = importScreenshotImage(imageData);
 
-    expect(result.uncoveredCells).toBe(0);
-    expect(result.counts.P07).toBe(1);
-    expect(result.counts.P09).toBe(1);
-  });
-
-  it('prefers known larger shapes over single-cell fallbacks', () => {
-    const grid = emptyGrid();
-    fill(grid, [
-      [0, 1],
-      [1, 0],
-      [1, 1],
-      [1, 2],
-      [2, 1],
-    ]);
-
-    const result = inferItemCountsFromOccupiedGrid(grid);
-
-    expect(result.uncoveredCells).toBe(0);
-    expect(result.counts.P12).toBe(1);
-    expect(result.counts.P11).toBe(0);
-  });
-
-  it('matches adjacent large items instead of splitting them into narrow items', () => {
-    const grid = emptyGrid();
-    fill(grid, [
-      [3, 4],
-      [3, 5],
-      [3, 6],
-      [4, 2],
-      [4, 3],
-      [4, 4],
-      [4, 5],
-      [5, 2],
-      [5, 3],
-      [5, 4],
-      [5, 5],
-    ]);
-
-    const result = inferItemCountsFromOccupiedGrid(grid);
-
-    expect(result.uncoveredCells).toBe(0);
-    expect(result.counts.P15).toBe(1);
-    expect((result.counts.P04 ?? 0) + (result.counts.P14 ?? 0)).toBe(1);
-    expect(result.counts.P09).toBe(0);
-    expect(result.counts.P10).toBe(0);
+    expect(result.board).toHaveLength(9);
+    expect(result.board.every((row) => row.length === 9)).toBe(true);
+    expect(result.confidence.board).toBeGreaterThan(0);
+    expect('counts' in result).toBe(false);
   });
 });

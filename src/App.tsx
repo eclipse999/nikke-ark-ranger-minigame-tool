@@ -84,7 +84,7 @@ function App() {
   const [counts, setCounts] = useState<Record<string, number>>(() => Object.fromEntries(items.map((item) => [item.id, 0])));
   const [result, setResult] = useState<SolverResult | null>(null);
   const [solutionIndex, setSolutionIndex] = useState(0);
-  const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [hasImportError, setHasImportError] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const t = messages[locale];
@@ -97,7 +97,7 @@ function App() {
     setCounts((current) => ({ ...current, [itemId]: nextValue }));
     setResult(null);
     setSolutionIndex(0);
-    setImportMessage(null);
+    setHasImportError(false);
   }
 
   function toggleCell(row: number, col: number) {
@@ -108,7 +108,7 @@ function App() {
     });
     setResult(null);
     setSolutionIndex(0);
-    setImportMessage(null);
+    setHasImportError(false);
   }
 
   function runSolver() {
@@ -121,41 +121,36 @@ function App() {
     setBoard(createDefaultBoard());
     setResult(null);
     setSolutionIndex(0);
-    setImportMessage(null);
+    setHasImportError(false);
   }
 
   function makeFullBoard() {
     setBoard(createFullBoard());
     setResult(null);
     setSolutionIndex(0);
-    setImportMessage(null);
+    setHasImportError(false);
   }
 
   function clearItems() {
     setCounts(Object.fromEntries(items.map((item) => [item.id, 0])));
     setResult(null);
     setSolutionIndex(0);
-    setImportMessage(null);
+    setHasImportError(false);
   }
 
   async function importScreenshot(file: File) {
     setIsImporting(true);
-    setImportMessage(null);
+    setHasImportError(false);
 
     try {
       const imageData = await readImageFile(file);
       const imported = importScreenshotImage(imageData);
-      const detectedItems = Object.values(imported.counts).reduce((total, count) => total + count, 0);
-      const summary = `${t.importApplied}。${t.usableCells}: ${countUsableCells(imported.board)}，${t.items}: ${detectedItems}。${t.importReviewHint}`;
-      const warningText = imported.warnings.length > 0 ? ` ${imported.warnings.join(' ')}` : '';
 
       setBoard(imported.board);
-      setCounts(imported.counts);
       setResult(null);
       setSolutionIndex(0);
-      setImportMessage(`${summary}${warningText}`);
     } catch {
-      setImportMessage(t.importFailed);
+      setHasImportError(true);
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) {
@@ -184,28 +179,8 @@ function App() {
         <section className="panel board-panel">
           <div className="panel-heading">
             <h2>{t.board}</h2>
-            <span>{usableCells}/81</span>
-          </div>
-          <BoardGrid
-            board={board}
-            onToggle={toggleCell}
-            labels={{ available: t.available, unavailable: t.unavailable, occupied: t.occupied }}
-          />
-          <div className="button-row">
-            <button type="button" onClick={resetBoard}>
-              {t.resetBoard}
-            </button>
-            <button type="button" onClick={makeFullBoard}>
-              {t.fullBoard}
-            </button>
-          </div>
-        </section>
-
-        <section className="panel item-panel">
-          <div className="panel-heading">
-            <h2>{t.items}</h2>
-            <div className="panel-actions">
-              <label className={`file-button ${isImporting ? 'disabled' : ''}`}>
+            <div className="board-heading-actions">
+              <label className={`file-button compact-button ${isImporting ? 'disabled' : ''}`}>
                 {isImporting ? t.importingScreenshot : t.importScreenshot}
                 <input
                   ref={fileInputRef}
@@ -220,6 +195,29 @@ function App() {
                   type="file"
                 />
               </label>
+              <span>{usableCells}/81</span>
+            </div>
+          </div>
+          <BoardGrid
+            board={board}
+            onToggle={toggleCell}
+            labels={{ available: t.available, unavailable: t.unavailable, occupied: t.occupied }}
+          />
+          <div className="button-row">
+            <button type="button" onClick={resetBoard}>
+              {t.resetBoard}
+            </button>
+            <button type="button" onClick={makeFullBoard}>
+              {t.fullBoard}
+            </button>
+          </div>
+          {hasImportError ? <p className="import-status">{t.importFailed}</p> : null}
+        </section>
+
+        <section className="panel item-panel">
+          <div className="panel-heading">
+            <h2>{t.items}</h2>
+            <div className="panel-actions">
               <button className="primary-button compact-button" type="button" onClick={clearItems}>
                 {t.clearItems}
               </button>
@@ -248,7 +246,6 @@ function App() {
               </article>
             ))}
           </div>
-          {importMessage ? <p className="import-status">{importMessage}</p> : null}
         </section>
 
         <section className="panel result-panel">
