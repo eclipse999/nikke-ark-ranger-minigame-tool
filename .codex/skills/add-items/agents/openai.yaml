@@ -1,4 +1,0 @@
-interface:
-  display_name: "Add Items"
-  short_description: "Add provided item shapes to this minigame"
-  default_prompt: "Use $add-items to add newly provided item shape data to the NIKKE Ark Ranger minigame tool."
