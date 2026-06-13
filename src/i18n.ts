@@ -9,13 +9,23 @@ type Messages = {
   resetBoard: string;
   fullBoard: string;
   clearItems: string;
+  resetPriorities: string;
   solve: string;
   language: string;
   quantity: string;
+  priority: string;
+  mustUse: string;
   rotations: string;
   usedItems: string;
+  unusedItems: string;
+  noUnusedItems: string;
   usableCells: string;
   filledCells: string;
+  selectedItemArea: string;
+  placementRatio: string;
+  priorityScore: string;
+  mustUseSatisfied: string;
+  mustUseMissing: string;
   utilization: string;
   noResult: string;
   solution: string;
@@ -40,13 +50,23 @@ export const messages: Record<Locale, Messages> = {
     resetBoard: '重置背包狀態',
     fullBoard: '全部可用',
     clearItems: '清空道具',
+    resetPriorities: '重置優先權',
     solve: '執行最佳化',
     language: '語言',
     quantity: '數量',
+    priority: '優先',
+    mustUse: '必用',
     rotations: '旋轉',
     usedItems: '使用數量',
+    unusedItems: '未放入道具',
+    noUnusedItems: '所有所選道具皆已放入。',
     usableCells: '可用格',
     filledCells: '填入格',
+    selectedItemArea: '所選格',
+    placementRatio: '安置率',
+    priorityScore: '優先分',
+    mustUseSatisfied: '必用道具皆已放入',
+    mustUseMissing: '必用道具未完全放入',
     utilization: '利用率',
     noResult: '尚未計算，或目前沒有可擺放道具。',
     solution: '解法',
@@ -69,13 +89,23 @@ export const messages: Record<Locale, Messages> = {
     resetBoard: 'Reset Board',
     fullBoard: 'All Available',
     clearItems: 'Clear Items',
+    resetPriorities: 'Reset Priority',
     solve: 'Optimize',
     language: 'Language',
     quantity: 'Qty',
+    priority: 'Priority',
+    mustUse: 'Must-use',
     rotations: 'Rotations',
     usedItems: 'Items Used',
+    unusedItems: 'Items Not Placed',
+    noUnusedItems: 'All selected items were placed.',
     usableCells: 'Usable',
     filledCells: 'Filled',
+    selectedItemArea: 'Selected',
+    placementRatio: 'Placement',
+    priorityScore: 'Priority Score',
+    mustUseSatisfied: 'All must-use items placed',
+    mustUseMissing: 'Must-use items missing',
     utilization: 'Utilization',
     noResult: 'Run the optimizer, or add items that can be placed.',
     solution: 'Solution',

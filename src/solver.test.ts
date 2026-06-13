@@ -140,6 +140,70 @@ describe('solver', () => {
     expect(result.targetFilledCells).toBe(result.usableCells);
   });
 
+  it('maximizes filled cells when selected item area exceeds usable cells and priorities are equal', () => {
+    const board = boardFromRows([
+      '..xxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+    ]);
+    const result = solveInventory(board, { P10: 1, P11: 3 }, { maxSolutions: 3, timeLimitMs: 100 });
+
+    expect(result.selectedItemArea).toBeGreaterThan(result.usableCells);
+    expect(result.bestFilledCells).toBe(2);
+    expect(result.usedCounts).toEqual({ P11: 2 });
+  });
+
+  it('prefers a high-priority item over a mutually exclusive low-priority item', () => {
+    const board = boardFromRows([
+      '.xxxxxxxx',
+      '.xxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+    ]);
+    const result = solveInventory(board, { P10: 1, P11: 1 }, {
+      maxSolutions: 3,
+      timeLimitMs: 100,
+      priorityByItemId: { P10: 1, P11: 5 },
+    });
+
+    expect(result.usedCounts).toEqual({ P11: 1 });
+    expect(result.priorityScore).toBe(5);
+  });
+
+  it('prefers a must-use item over a mutually exclusive normal item', () => {
+    const board = boardFromRows([
+      '.xxxxxxxx',
+      '.xxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+    ]);
+    const result = solveInventory(board, { P10: 1, P11: 1 }, {
+      maxSolutions: 3,
+      timeLimitMs: 100,
+      mustUseItemIds: ['P11'],
+    });
+
+    expect(result.usedCounts).toEqual({ P11: 1 });
+    expect(result.mustUseSatisfied).toBe(true);
+    expect(result.mustUseUsedCounts).toEqual({ P11: 1 });
+  });
+
   it('reports used and unused counts from the best solution', () => {
     const board = boardFromRows([
       '..xxxxxxx',
@@ -200,6 +264,27 @@ describe('solver', () => {
     expect(result.mustUseSatisfied).toBe(false);
     expect(result.mustUseUsedCounts).toEqual({});
     expect(result.mustUseUnusedCounts).toEqual({ P10: 1 });
+  });
+
+  it('keeps a non-empty best solution when must-use items cannot all be placed', () => {
+    const board = boardFromRows([
+      '.xxxxxxxx',
+      '.xxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+    ]);
+    const result = solveInventory(board, { P09: 1, P11: 1 }, { mustUseItemIds: ['P09'], timeLimitMs: 100 });
+
+    expect(result.bestFilledCells).toBe(1);
+    expect(result.solutions[0].placements).toHaveLength(1);
+    expect(result.usedCounts).toEqual({ P11: 1 });
+    expect(result.mustUseSatisfied).toBe(false);
+    expect(result.mustUseUnusedCounts).toEqual({ P09: 1 });
   });
 
   it('handles items that cannot fit', () => {
@@ -293,6 +378,24 @@ describe('solver', () => {
     expect(squarePlacements).toHaveLength(1);
   });
 
+  it('can skip an uncovered pivot cell to reach a later optimal placement', () => {
+    const board = boardFromRows([
+      '.xxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxx..xxxx',
+      'xxx..xxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+    ]);
+    const result = solveInventory(board, { P07: 1 }, { maxSolutions: 3, timeLimitMs: 100 });
+
+    expect(result.bestFilledCells).toBe(4);
+    expect(result.usedCounts).toEqual({ P07: 1 });
+  });
+
   it('uses rotations when an item cannot fit in its base orientation', () => {
     const board = boardFromRows([
       '..xxxxxxx',
@@ -329,6 +432,24 @@ describe('solver', () => {
     expect(result.solutions.length).toBeLessThanOrEqual(2);
     expect(result.searchedNodes).toBeGreaterThan(0);
     expect(['complete', 'time-limit']).toContain(result.stopReason);
+  });
+
+  it('reports time-limit and keeps a best-so-far solution under an extremely small time limit', () => {
+    const result = solveInventory(
+      createFullBoard(),
+      {
+        P01: 20,
+        P02: 20,
+        P03: 20,
+        P12: 20,
+        P15: 20,
+      },
+      { maxSolutions: 2, timeLimitMs: 0 },
+    );
+
+    expect(result.stopReason).toBe('time-limit');
+    expect(result.solutions.length).toBeGreaterThan(0);
+    expect(result.bestFilledCells).toBeGreaterThanOrEqual(0);
   });
 
   it('respects maxSolutions when many equivalent placements are possible', () => {
@@ -458,7 +579,7 @@ describe('solver', () => {
     expect(result.solutions.some((solution) => solution.placements.some((placement) => placement.itemId === 'P12'))).toBe(true);
   });
 
-  describe.skip('future priority and must-use behavior', () => {
+  describe('priority and must-use behavior', () => {
     it('prioritizes higher-priority items when selected item area exceeds usable cells', () => {
       const board = createDefaultBoard();
       const counts = { P15: 6, P12: 3, P11: 8 };
@@ -485,6 +606,7 @@ describe('solver', () => {
       const result = solveInventory(board, counts, options);
 
       expect(result.solutions[0].placements.some((placement) => placement.itemId === 'P12')).toBe(true);
+      expect(result.mustUseSatisfied).toBe(true);
     });
   });
 });

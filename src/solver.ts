@@ -8,6 +8,19 @@ type ItemSearchEntry = {
   count: number;
 };
 
+type CandidateScore = {
+  mustUseFilledArea: number;
+  priorityScore: number;
+  filledCells: number;
+  unusedItemCount: number;
+  signature: string;
+};
+
+type ScoredCandidate = {
+  solution: CandidateSolution;
+  score: CandidateScore;
+};
+
 export type CachedPlacement = Placement & {
   shapeIndex: number;
   area: number;
@@ -31,6 +44,10 @@ function cellIndex(row: number, col: number): number {
 
 function bitFor(row: number, col: number): bigint {
   return 1n << BigInt(cellIndex(row, col));
+}
+
+function bitForIndex(index: number): bigint {
+  return 1n << BigInt(index);
 }
 
 function buildUsableMask(board: Board): bigint {
@@ -154,31 +171,74 @@ export function buildPlacementCache(board: Board): PlacementCache {
 
 function candidateSignature(candidate: CandidateSolution): string {
   return candidate.placements
-    .flatMap((placement) => placement.cells.map((cell) => `${cell.row},${cell.col}:${placement.itemId}`))
+    .map(
+      (placement) =>
+        `${placement.itemId}:${placement.rotation}:${placement.row},${placement.col}:${placement.cells
+          .map((cell) => `${cell.row},${cell.col}`)
+          .join(';')}`,
+    )
     .sort()
     .join('|');
 }
 
-function addCandidate(candidates: CandidateSolution[], candidate: CandidateSolution, maxSolutions: number) {
-  const signature = candidateSignature(candidate);
+function compareScores(a: CandidateScore, b: CandidateScore): number {
+  return (
+    b.mustUseFilledArea - a.mustUseFilledArea ||
+    b.priorityScore - a.priorityScore ||
+    b.filledCells - a.filledCells ||
+    a.unusedItemCount - b.unusedItemCount ||
+    a.signature.localeCompare(b.signature)
+  );
+}
 
-  if (
-    candidates.some(
-      (existing) => existing.filledCells === candidate.filledCells && candidateSignature(existing) === signature,
-    )
-  ) {
-    return;
-  }
+function isScoreBetterThan(a: CandidateScore, b: CandidateScore | null): boolean {
+  return b === null || compareScores(a, b) < 0;
+}
 
-  candidates.push({
+function cloneCandidate(candidate: CandidateSolution): CandidateSolution {
+  return {
     filledCells: candidate.filledCells,
     placements: candidate.placements.map((placement) => ({
       ...placement,
       cells: placement.cells.map((cell) => ({ ...cell })),
     })),
+  };
+}
+
+function getUnusedItemCount(selectedCounts: Record<string, number>, usedCounts: Record<string, number>): number {
+  return Object.entries(selectedCounts).reduce(
+    (total, [itemId, count]) => total + Math.max(0, count - (usedCounts[itemId] ?? 0)),
+    0,
+  );
+}
+
+function makeCandidateScore(
+  candidate: CandidateSolution,
+  selectedCounts: Record<string, number>,
+  usedCounts: Record<string, number>,
+  priorityScore: number,
+  mustUseFilledArea: number,
+): CandidateScore {
+  return {
+    mustUseFilledArea,
+    priorityScore,
+    filledCells: candidate.filledCells,
+    unusedItemCount: getUnusedItemCount(selectedCounts, usedCounts),
+    signature: candidateSignature(candidate),
+  };
+}
+
+function addCandidate(candidates: ScoredCandidate[], candidate: CandidateSolution, score: CandidateScore, maxSolutions: number) {
+  if (candidates.some((existing) => existing.score.signature === score.signature)) {
+    return;
+  }
+
+  candidates.push({
+    solution: cloneCandidate(candidate),
+    score,
   });
 
-  candidates.sort((a, b) => b.filledCells - a.filledCells || a.placements.length - b.placements.length);
+  candidates.sort((a, b) => compareScores(a.score, b.score));
   candidates.splice(maxSolutions);
 }
 
@@ -263,6 +323,62 @@ function getMustUseCounts(
   return { used, unused };
 }
 
+function getFirstOpenCellIndex(usableMask: bigint, occupiedMask: bigint): number | null {
+  const openMask = usableMask & ~occupiedMask;
+
+  for (let index = 0; index < BOARD_SIZE * BOARD_SIZE; index += 1) {
+    if ((openMask & bitForIndex(index)) !== 0n) {
+      return index;
+    }
+  }
+
+  return null;
+}
+
+function getMustUseSet(mustUseItemIds: string[] | undefined): Set<string> {
+  return new Set(mustUseItemIds ?? []);
+}
+
+function getPlacementSortKey(
+  placement: CachedPlacement,
+  remainingCounts: Record<string, number>,
+  placementCache: PlacementCache,
+  mustUseItems: Set<string>,
+  priorityByItemId: Record<string, number> | undefined,
+) {
+  return {
+    mustUse: mustUseItems.has(placement.itemId) ? 1 : 0,
+    priority: getItemPriority(placement.itemId, priorityByItemId),
+    area: placement.area,
+    remainingCount: remainingCounts[placement.itemId] ?? 0,
+    restriction: placementCache.placementsByItemId.get(placement.itemId)?.length ?? 0,
+  };
+}
+
+function comparePlacements(
+  a: CachedPlacement,
+  b: CachedPlacement,
+  remainingCounts: Record<string, number>,
+  placementCache: PlacementCache,
+  mustUseItems: Set<string>,
+  priorityByItemId: Record<string, number> | undefined,
+): number {
+  const aKey = getPlacementSortKey(a, remainingCounts, placementCache, mustUseItems, priorityByItemId);
+  const bKey = getPlacementSortKey(b, remainingCounts, placementCache, mustUseItems, priorityByItemId);
+
+  return (
+    bKey.mustUse - aKey.mustUse ||
+    bKey.priority - aKey.priority ||
+    bKey.area - aKey.area ||
+    aKey.remainingCount - bKey.remainingCount ||
+    aKey.restriction - bKey.restriction ||
+    a.itemId.localeCompare(b.itemId) ||
+    a.rotation - b.rotation ||
+    a.row - b.row ||
+    a.col - b.col
+  );
+}
+
 export function solveInventory(
   board: Board,
   counts: Record<string, number>,
@@ -276,31 +392,82 @@ export function solveInventory(
   const selectedItemArea = getCountsArea(selectedCounts);
   const searchEntries = collectSearchEntries(counts);
   const remainingCounts = cloneCounts(selectedCounts);
-  const minPlacementIndexes = Object.fromEntries(searchEntries.map((entry) => [entry.itemId, 0]));
-  const maxCount = Math.max(0, ...searchEntries.map((entry) => entry.count));
-  const totalSearchSlots = maxCount * searchEntries.length;
   const placementCache = buildPlacementCache(board);
-  const candidates: CandidateSolution[] = [];
+  const candidates: ScoredCandidate[] = [];
   const placements: Placement[] = [];
+  const usedCounts: Record<string, number> = {};
+  const mustUseItems = getMustUseSet(options.mustUseItemIds);
+  const targetFilledCells = Math.min(selectedItemArea, usableCells);
 
-  let bestFilledCells = 0;
+  let bestScore: CandidateScore | null = null;
   let searchedNodes = 0;
   let timedOut = false;
+  let shouldStop = false;
 
-  function remember(score: number) {
-    if (score < bestFilledCells) {
+  function makeCurrentScore(filledCells: number, priorityScore: number, mustUseFilledArea: number): CandidateScore {
+    return makeCandidateScore(
+      { filledCells, placements },
+      selectedCounts,
+      usedCounts,
+      priorityScore,
+      mustUseFilledArea,
+    );
+  }
+
+  function remember(filledCells: number, priorityScore: number, mustUseFilledArea: number) {
+    const score = makeCurrentScore(filledCells, priorityScore, mustUseFilledArea);
+
+    if (bestScore !== null && compareScores(score, bestScore) > 0) {
       return;
     }
 
-    if (score > bestFilledCells) {
-      bestFilledCells = score;
+    if (isScoreBetterThan(score, bestScore)) {
+      bestScore = score;
       candidates.length = 0;
     }
 
-    addCandidate(candidates, { filledCells: score, placements }, settings.maxSolutions);
+    addCandidate(candidates, { filledCells, placements }, score, settings.maxSolutions);
+
+    if (candidates.length >= settings.maxSolutions && candidates[0]?.score.filledCells === targetFilledCells) {
+      shouldStop = true;
+    }
   }
 
-  function dfs(searchSlotIndex: number, occupiedMask: bigint, score: number): void {
+  function canImproveBest(
+    occupiedMask: bigint,
+    filledCells: number,
+    priorityScore: number,
+    mustUseFilledArea: number,
+  ): boolean {
+    if (bestScore === null) {
+      return true;
+    }
+
+    const freeCells = countBits(usableMask & ~occupiedMask);
+    const remainingArea = remainingAreaTotal(searchEntries, remainingCounts);
+    const optimisticScore: CandidateScore = {
+      mustUseFilledArea:
+        mustUseFilledArea +
+        Object.entries(remainingCounts).reduce(
+          (total, [itemId, count]) => total + (mustUseItems.has(itemId) ? getItemArea(itemId) * count : 0),
+          0,
+        ),
+      priorityScore:
+        priorityScore +
+        Object.entries(remainingCounts).reduce(
+          (total, [itemId, count]) =>
+            total + getItemArea(itemId) * getItemPriority(itemId, options.priorityByItemId) * count,
+          0,
+        ),
+      filledCells: filledCells + Math.min(freeCells, remainingArea),
+      unusedItemCount: 0,
+      signature: '',
+    };
+
+    return compareScores(optimisticScore, bestScore) <= 0;
+  }
+
+  function dfs(occupiedMask: bigint, filledCells: number, priorityScore: number, mustUseFilledArea: number): void {
     searchedNodes += 1;
 
     if ((searchedNodes & 255) === 0 && performance.now() - start > settings.timeLimitMs) {
@@ -308,71 +475,75 @@ export function solveInventory(
       return;
     }
 
-    const freeCells = countBits(usableMask & ~occupiedMask);
-    if (score + Math.min(freeCells, remainingAreaTotal(searchEntries, remainingCounts)) < bestFilledCells) {
+    remember(filledCells, priorityScore, mustUseFilledArea);
+
+    if (shouldStop || timedOut) {
       return;
     }
 
-    remember(score);
-
-    if (searchSlotIndex >= totalSearchSlots || freeCells === 0) {
+    if (!canImproveBest(occupiedMask, filledCells, priorityScore, mustUseFilledArea)) {
       return;
     }
 
-    const itemIndex = searchSlotIndex % searchEntries.length;
-    const copyIndex = Math.floor(searchSlotIndex / searchEntries.length);
-    const entry = searchEntries[itemIndex];
-    const itemPlacements = placementCache.placementsByItemId.get(entry.itemId) ?? [];
+    const pivotCellIndex = getFirstOpenCellIndex(usableMask, occupiedMask);
 
-    if (copyIndex < entry.count && (remainingCounts[entry.itemId] ?? 0) > 0) {
-      for (
-        let placementIndex = minPlacementIndexes[entry.itemId] ?? 0;
-        placementIndex < itemPlacements.length;
-        placementIndex += 1
-      ) {
-        const cachedPlacement = itemPlacements[placementIndex];
-        if ((cachedPlacement.mask & occupiedMask) !== 0n) {
-          continue;
-        }
+    if (pivotCellIndex === null) {
+      return;
+    }
 
-        const previousMinPlacementIndex = minPlacementIndexes[entry.itemId] ?? 0;
-        minPlacementIndexes[entry.itemId] = placementIndex + 1;
-        remainingCounts[entry.itemId] -= 1;
-        placements.push(toPlacement(cachedPlacement));
-        dfs(searchSlotIndex + 1, occupiedMask | cachedPlacement.mask, score + cachedPlacement.area);
-        placements.pop();
-        remainingCounts[entry.itemId] += 1;
-        minPlacementIndexes[entry.itemId] = previousMinPlacementIndex;
+    const pivotPlacements = placementCache.placementsByCell[pivotCellIndex]
+      .filter((placement) => (remainingCounts[placement.itemId] ?? 0) > 0 && (placement.mask & occupiedMask) === 0n)
+      .sort((a, b) => comparePlacements(a, b, remainingCounts, placementCache, mustUseItems, options.priorityByItemId));
 
-        if (timedOut) {
-          return;
-        }
+    for (const cachedPlacement of pivotPlacements) {
+      const itemPriority = getItemPriority(cachedPlacement.itemId, options.priorityByItemId);
+      const mustUseArea = mustUseItems.has(cachedPlacement.itemId) ? cachedPlacement.area : 0;
+
+      remainingCounts[cachedPlacement.itemId] -= 1;
+      usedCounts[cachedPlacement.itemId] = (usedCounts[cachedPlacement.itemId] ?? 0) + 1;
+      placements.push(toPlacement(cachedPlacement));
+
+      dfs(
+        occupiedMask | cachedPlacement.mask,
+        filledCells + cachedPlacement.area,
+        priorityScore + cachedPlacement.area * itemPriority,
+        mustUseFilledArea + mustUseArea,
+      );
+
+      placements.pop();
+      usedCounts[cachedPlacement.itemId] -= 1;
+      if (usedCounts[cachedPlacement.itemId] === 0) {
+        delete usedCounts[cachedPlacement.itemId];
+      }
+      remainingCounts[cachedPlacement.itemId] += 1;
+
+      if (timedOut || shouldStop) {
+        return;
       }
     }
 
-    dfs(searchSlotIndex + 1, occupiedMask, score);
+    dfs(occupiedMask | bitForIndex(pivotCellIndex), filledCells, priorityScore, mustUseFilledArea);
   }
 
-  dfs(0, 0n, 0);
+  dfs(0n, 0, 0, 0);
 
-  const bestSolution = candidates[0];
-  const usedCounts = getUsedCounts(bestSolution);
-  const unusedCounts = getUnusedCounts(selectedCounts, usedCounts);
-  const mustUseCounts = getMustUseCounts(selectedCounts, usedCounts, options.mustUseItemIds);
-  const targetFilledCells = Math.min(selectedItemArea, usableCells);
-  const placedItemArea = bestFilledCells;
+  const bestSolution = candidates[0]?.solution;
+  const finalUsedCounts = getUsedCounts(bestSolution);
+  const unusedCounts = getUnusedCounts(selectedCounts, finalUsedCounts);
+  const mustUseCounts = getMustUseCounts(selectedCounts, finalUsedCounts, options.mustUseItemIds);
+  const placedItemArea = bestSolution?.filledCells ?? 0;
 
   return {
-    bestFilledCells,
+    bestFilledCells: placedItemArea,
     usableCells,
-    utilization: usableCells === 0 ? 0 : bestFilledCells / usableCells,
-    solutions: candidates,
+    utilization: usableCells === 0 ? 0 : placedItemArea / usableCells,
+    solutions: candidates.map((candidate) => candidate.solution),
     selectedItemArea,
     placedItemArea,
     selectedPlacementRatio: selectedItemArea === 0 ? 0 : placedItemArea / selectedItemArea,
-    usedCounts,
+    usedCounts: finalUsedCounts,
     unusedCounts,
-    priorityScore: getPriorityScore(usedCounts, options.priorityByItemId),
+    priorityScore: candidates[0]?.score.priorityScore ?? getPriorityScore(finalUsedCounts, options.priorityByItemId),
     mustUseSatisfied: Object.keys(mustUseCounts.unused).length === 0,
     mustUseUsedCounts: mustUseCounts.used,
     mustUseUnusedCounts: mustUseCounts.unused,

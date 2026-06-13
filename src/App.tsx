@@ -191,11 +191,14 @@ function App() {
   });
   const [board, setBoard] = useState<Board>(() => createDefaultBoard());
   const [counts, setCounts] = useState<Record<string, number>>(() => Object.fromEntries(items.map((item) => [item.id, 0])));
+  const [priorityByItemId, setPriorityByItemId] = useState<Record<string, number>>(() => Object.fromEntries(items.map((item) => [item.id, 1])));
+  const [mustUseItemIds, setMustUseItemIds] = useState<string[]>([]);
   const [result, setResult] = useState<SolverResult | null>(null);
   const [solutionIndex, setSolutionIndex] = useState(0);
   const t = messages[locale];
   const usableCells = useMemo(() => countUsableCells(board), [board]);
   const currentSolution = result?.solutions[solutionIndex] ?? null;
+  const mustUseSet = useMemo(() => new Set(mustUseItemIds), [mustUseItemIds]);
 
   const usedCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -208,6 +211,27 @@ function App() {
   function updateCount(itemId: string, value: string) {
     const nextValue = Math.max(0, Math.floor(Number(value) || 0));
     setCounts((current) => ({ ...current, [itemId]: nextValue }));
+    if (nextValue === 0) {
+      setMustUseItemIds((current) => current.filter((currentItemId) => currentItemId !== itemId));
+    }
+    setResult(null);
+    setSolutionIndex(0);
+  }
+
+  function updatePriority(itemId: string, value: string) {
+    const nextValue = Math.min(5, Math.max(1, Math.floor(Number(value) || 1)));
+    setPriorityByItemId((current) => ({ ...current, [itemId]: nextValue }));
+    setResult(null);
+    setSolutionIndex(0);
+  }
+
+  function toggleMustUse(itemId: string, checked: boolean) {
+    setMustUseItemIds((current) => {
+      if (checked) {
+        return current.includes(itemId) ? current : [...current, itemId];
+      }
+      return current.filter((currentItemId) => currentItemId !== itemId);
+    });
     setResult(null);
     setSolutionIndex(0);
   }
@@ -239,7 +263,7 @@ function App() {
   }
 
   function runSolver() {
-    const nextResult = solveInventory(board, counts, { maxSolutions: 3, timeLimitMs: 1000 });
+    const nextResult = solveInventory(board, counts, { maxSolutions: 3, timeLimitMs: 1000, priorityByItemId, mustUseItemIds });
     setResult(nextResult);
     setSolutionIndex(0);
   }
@@ -258,6 +282,14 @@ function App() {
 
   function clearItems() {
     setCounts(Object.fromEntries(items.map((item) => [item.id, 0])));
+    setMustUseItemIds([]);
+    setResult(null);
+    setSolutionIndex(0);
+  }
+
+  function resetPriorities() {
+    setPriorityByItemId(Object.fromEntries(items.map((item) => [item.id, 1])));
+    setMustUseItemIds([]);
     setResult(null);
     setSolutionIndex(0);
   }
@@ -311,6 +343,9 @@ function App() {
               <button className="primary-button compact-button" type="button" onClick={clearItems}>
                 {t.clearItems}
               </button>
+              <button className="compact-button" type="button" onClick={resetPriorities}>
+                {t.resetPriorities}
+              </button>
               <button className="primary-button compact-button" type="button" onClick={runSolver}>
                 {t.solve}
               </button>
@@ -333,6 +368,27 @@ function App() {
                     onChange={(event) => updateCount(item.id, event.target.value)}
                   />
                 </label>
+                <div className="item-controls">
+                  <label className="priority-control">
+                    <span>{t.priority}</span>
+                    <select value={priorityByItemId[item.id] ?? 1} onChange={(event) => updatePriority(item.id, event.target.value)}>
+                      {[1, 2, 3, 4, 5].map((priority) => (
+                        <option key={priority} value={priority}>
+                          {priority}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="must-use-control">
+                    <input
+                      type="checkbox"
+                      checked={mustUseSet.has(item.id)}
+                      disabled={(counts[item.id] ?? 0) === 0}
+                      onChange={(event) => toggleMustUse(item.id, event.target.checked)}
+                    />
+                    <span>{t.mustUse}</span>
+                  </label>
+                </div>
               </article>
             ))}
           </div>
@@ -355,9 +411,31 @@ function App() {
                   <strong>{result.bestFilledCells}</strong>
                 </div>
                 <div>
+                  <span>{t.selectedItemArea}</span>
+                  <strong>{result.selectedItemArea}</strong>
+                </div>
+                <div>
+                  <span>{t.placementRatio}</span>
+                  <strong>{Math.round(result.selectedPlacementRatio * 1000) / 10}%</strong>
+                </div>
+                <div>
                   <span>{t.utilization}</span>
                   <strong>{Math.round(result.utilization * 1000) / 10}%</strong>
                 </div>
+                <div>
+                  <span>{t.priorityScore}</span>
+                  <strong>{result.priorityScore}</strong>
+                </div>
+              </div>
+              <div className={`result-alert ${result.mustUseSatisfied ? 'satisfied' : 'warning'}`}>
+                <strong>{result.mustUseSatisfied ? t.mustUseSatisfied : t.mustUseMissing}</strong>
+                {!result.mustUseSatisfied && (
+                  <span>
+                    {Object.entries(result.mustUseUnusedCounts)
+                      .map(([itemId, count]) => `${itemId} x${count}`)
+                      .join(', ')}
+                  </span>
+                )}
               </div>
               <BoardGrid
                 board={board}
@@ -401,6 +479,29 @@ function App() {
                     );
                   })}
                 </div>
+              </div>
+              <div className="usage-summary">
+                <h3>{t.unusedItems}</h3>
+                {Object.keys(result.unusedCounts).length > 0 ? (
+                  <div className="usage-list">
+                    {items.map((item) => {
+                      const unused = result.unusedCounts[item.id] ?? 0;
+                      if (unused === 0) return null;
+                      const shape = item.rotations[0];
+                      return (
+                        <div key={item.id} className="usage-card unused-card">
+                          <ShapePreview cells={shape.cells} width={shape.width} height={shape.height} />
+                          <div className="usage-card-body">
+                            <strong>{item.id}</strong>
+                            <span>×{unused}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="empty-mini">{t.noUnusedItems}</p>
+                )}
               </div>
             </>
           ) : (
