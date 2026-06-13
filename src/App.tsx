@@ -198,6 +198,7 @@ function App() {
   const usableCells = useMemo(() => countUsableCells(board), [board]);
   const currentSolution = result?.solutions[0] ?? null;
   const mustUseSet = useMemo(() => new Set(mustUseItemIds), [mustUseItemIds]);
+  const hasMustUseItems = mustUseItemIds.length > 0;
 
   const usedCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -409,16 +410,18 @@ function App() {
                   <strong>{Math.round(result.utilization * 1000) / 10}%</strong>
                 </div>
               </div>
-              <div className={`result-alert ${result.mustUseSatisfied ? 'satisfied' : 'warning'}`}>
-                <strong>{result.mustUseSatisfied ? t.mustUseSatisfied : t.mustUseMissing}</strong>
-                {!result.mustUseSatisfied && (
-                  <span>
-                    {Object.entries(result.mustUseUnusedCounts)
-                      .map(([itemId, count]) => `${itemId} x${count}`)
-                      .join(', ')}
-                  </span>
-                )}
-              </div>
+              {hasMustUseItems && (
+                <div className={`result-alert ${result.mustUseSatisfied ? 'satisfied' : 'warning'}`}>
+                  <strong>{result.mustUseSatisfied ? t.mustUseSatisfied : t.mustUseMissing}</strong>
+                  {!result.mustUseSatisfied && (
+                    <span>
+                      {Object.entries(result.mustUseUnusedCounts)
+                        .map(([itemId, count]) => `${itemId} x${count}`)
+                        .join(', ')}
+                    </span>
+                  )}
+                </div>
+              )}
               <BoardGrid
                 board={board}
                 placements={currentSolution.placements}

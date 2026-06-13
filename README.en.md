@@ -45,7 +45,7 @@ Open your browser at `http://localhost:5173`.
 2. **Enter quantities** — Fill in how many of each item you have in the center panel
 3. **Set trade-offs** — Priority defaults to 1 and can be raised to 5; higher numbers have higher weight and are kept first when space is tight. Check "Must-use" to ask the solver to prefer keeping that item
 4. **Run the solver** — Click "Optimize"; the solver finds the best placement it can within the time limit
-5. **Review results** — The right panel shows usable cells, filled cells, item placement rate, inventory utilization, must-use status, placed items, and unplaced items
+5. **Review results** — The right panel shows usable cells, filled cells, item placement rate, inventory utilization, placed items, and unplaced items. Must-use status appears only when at least one item is marked must-use
 6. **Switch language** — Use the language dropdown at the top right
 
 ## Commands
