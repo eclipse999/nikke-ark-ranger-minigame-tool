@@ -1,27 +1,10 @@
 import { useMemo, useState } from 'react';
 import { cloneBoard, countUsableCells, createDefaultBoard, createFullBoard } from './board';
 import { messages, type Locale } from './i18n';
+import { getItemColor } from './itemColors';
 import { items } from './items';
 import { solveInventory } from './solver';
 import type { Board, Placement, SolverResult } from './types';
-
-const itemColors = new Map([
-  ['P01', '#ff3b30'],
-  ['P02', '#00c2ff'],
-  ['P03', '#ffd60a'],
-  ['P04', '#34c759'],
-  ['P05', '#bf5af2'],
-  ['P06', '#ff9f0a'],
-  ['P07', '#64d2ff'],
-  ['P08', '#ff375f'],
-  ['P09', '#30d158'],
-  ['P10', '#0a84ff'],
-  ['P11', '#ff453a'],
-  ['P12', '#5e5ce6'],
-  ['P13', '#d0ff00'],
-  ['P14', '#ff6bcb'],
-  ['P15', '#40c8b8'],
-]);
 
 function ShapePreview({ cells, width, height }: { cells: { row: number; col: number }[]; width: number; height: number }) {
   const filled = new Set(cells.map((cell) => `${cell.row},${cell.col}`));
@@ -58,7 +41,7 @@ function BoardGrid({
     const map = new Map<string, { placement: Placement; color: string }>();
     placements?.forEach((placement) => {
       placement.cells.forEach((cell) => {
-        map.set(`${cell.row},${cell.col}`, { placement, color: itemColors.get(placement.itemId) ?? '#60a5fa' });
+        map.set(`${cell.row},${cell.col}`, { placement, color: getItemColor(placement.itemId) });
       });
     });
     return map;
