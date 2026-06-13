@@ -185,6 +185,11 @@ button:disabled {
   background: #111827;
   color: #dbeafe;
 }
+.board-cell.selecting {
+  outline: 2px dashed #38bdf8;
+  outline-offset: 2px;
+  z-index: 1;
+}
 
 .board-cell.placed {
   color: #06101f;

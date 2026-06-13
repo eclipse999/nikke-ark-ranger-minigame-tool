@@ -31,11 +31,13 @@ function BoardGrid({
   board,
   placements,
   onToggle,
+  onBulkOpen,
   labels,
 }: {
   board: Board;
   placements?: Placement[];
   onToggle?: (row: number, col: number) => void;
+  onBulkOpen?: (cells: { row: number; col: number }[]) => void;
   labels: { available: string; unavailable: string; occupied: string };
 }) {
   const occupied = useMemo(() => {
@@ -70,26 +72,112 @@ function BoardGrid({
     return map;
   }, [placements]);
 
+  const [selection, setSelection] = useState<{ start: { row: number; col: number }; end: { row: number; col: number } } | null>(null);
+
+  function getCellFromEvent(event: React.PointerEvent<HTMLDivElement>): { row: number; col: number } | null {
+    const target = event.target as HTMLElement;
+    const cell = target.closest('[data-cell]') as HTMLElement | null;
+    if (!cell) return null;
+    const row = Number(cell.dataset.row);
+    const col = Number(cell.dataset.col);
+    if (Number.isNaN(row) || Number.isNaN(col)) return null;
+    return { row, col };
+  }
+
+  function commitSelection(start: { row: number; col: number }, end: { row: number; col: number }) {
+    if (!onBulkOpen) return;
+    const minRow = Math.min(start.row, end.row);
+    const maxRow = Math.max(start.row, end.row);
+    const minCol = Math.min(start.col, end.col);
+    const maxCol = Math.max(start.col, end.col);
+    const cells: { row: number; col: number }[] = [];
+    for (let row = minRow; row <= maxRow; row += 1) {
+      for (let col = minCol; col <= maxCol; col += 1) {
+        cells.push({ row, col });
+      }
+    }
+    onBulkOpen(cells);
+  }
+
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (!onToggle || !onBulkOpen) return;
+    event.preventDefault();
+    const cell = getCellFromEvent(event);
+    if (!cell) return;
+    setSelection({ start: cell, end: cell });
+  }
+
+  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (!selection) return;
+    event.preventDefault();
+    const cell = getCellFromEvent(event);
+    if (!cell) return;
+    setSelection((current) => (current && (current.end.row !== cell.row || current.end.col !== cell.col) ? { ...current, end: cell } : current));
+  }
+
+  function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    if (!selection) return;
+    event.preventDefault();
+    const { start, end } = selection;
+    setSelection(null);
+    if (start.row === end.row && start.col === end.col) {
+      onToggle?.(start.row, start.col);
+    } else {
+      commitSelection(start, end);
+    }
+  }
+
+  function handlePointerLeave(event: React.PointerEvent<HTMLDivElement>) {
+    if (!selection) return;
+    event.preventDefault();
+    const { start, end } = selection;
+    setSelection(null);
+    if (start.row === end.row && start.col === end.col) {
+      return;
+    }
+    commitSelection(start, end);
+  }
+
+  const selectionBounds = useMemo(() => {
+    if (!selection) return null;
+    return {
+      minRow: Math.min(selection.start.row, selection.end.row),
+      maxRow: Math.max(selection.start.row, selection.end.row),
+      minCol: Math.min(selection.start.col, selection.end.col),
+      maxCol: Math.max(selection.start.col, selection.end.col),
+    };
+  }, [selection]);
+
   return (
-    <div className="board-grid">
+    <div
+      className="board-grid"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerLeave}
+      style={{ touchAction: 'none' }}
+    >
       {board.flatMap((rowCells, row) =>
         rowCells.map((available, col) => {
           const placed = occupied.get(`${row},${col}`);
           const title = placed ? `${placed.placement.itemId} ${labels.occupied}` : available ? labels.available : labels.unavailable;
+          const inSelection = selectionBounds && row >= selectionBounds.minRow && row <= selectionBounds.maxRow && col >= selectionBounds.minCol && col <= selectionBounds.maxCol;
 
           return (
-            <button
+            <div
               key={`${row}-${col}`}
-              className={`board-cell ${available ? 'available' : 'blocked'} ${placed ? `placed ${placed.edgeClassName} ${placed.instanceClassName}` : ''}`}
-              onClick={() => onToggle?.(row, col)}
-              style={placed ? { backgroundColor: placed.color } : undefined}
-              type="button"
+              data-cell
+              data-row={row}
+              data-col={col}
+              className={`board-cell ${available ? 'available' : 'blocked'} ${placed ? `placed ${placed.edgeClassName} ${placed.instanceClassName}` : ''} ${inSelection ? 'selecting' : ''}`}
+              role="button"
+              tabIndex={onToggle ? 0 : -1}
               title={title}
-              disabled={!onToggle}
               aria-label={`${row + 1}-${col + 1} ${title}`}
+              style={placed ? { backgroundColor: placed.color } : undefined}
             >
               {placed ? placed.placement.itemId.slice(1) : available ? '' : 'x'}
-            </button>
+            </div>
           );
         }),
       )}
@@ -135,6 +223,22 @@ function App() {
       const next = cloneBoard(current);
       next[row][col] = !next[row][col];
       return next;
+    });
+    setResult(null);
+    setSolutionIndex(0);
+    setHasImportError(false);
+  }
+  function bulkOpenCells(cells: { row: number; col: number }[]) {
+    setBoard((current) => {
+      const next = cloneBoard(current);
+      let changed = false;
+      for (const { row, col } of cells) {
+        if (!next[row]?.[col]) {
+          next[row][col] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : current;
     });
     setResult(null);
     setSolutionIndex(0);
@@ -233,6 +337,7 @@ function App() {
           <BoardGrid
             board={board}
             onToggle={toggleCell}
+            onBulkOpen={bulkOpenCells}
             labels={{ available: t.available, unavailable: t.unavailable, occupied: t.occupied }}
           />
           <div className="button-row">
