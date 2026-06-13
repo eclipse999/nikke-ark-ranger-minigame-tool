@@ -13,6 +13,7 @@ type Messages = {
   importScreenshot: string;
   importingScreenshot: string;
   importFailed: string;
+  importScreenshotHint: string;
   language: string;
   quantity: string;
   rotations: string;
@@ -46,6 +47,7 @@ export const messages: Record<Locale, Messages> = {
     importScreenshot: '匯入截圖',
     importingScreenshot: '辨識中...',
     importFailed: '截圖匯入失敗，請確認圖片格式後再試一次。',
+    importScreenshotHint: '提示：截圖需包含完整的 9×9 背包網格，系統會自動辨識可用格與道具數量。',
     language: '語言',
     quantity: '數量',
     rotations: '旋轉',
@@ -77,6 +79,7 @@ export const messages: Record<Locale, Messages> = {
     importScreenshot: 'Import Screenshot',
     importingScreenshot: 'Reading...',
     importFailed: 'Screenshot import failed. Check the image format and try again.',
+    importScreenshotHint: 'Tip: screenshot must include the full 9×9 inventory grid; usable cells and item counts are auto-detected.',
     language: 'Language',
     quantity: 'Qty',
     rotations: 'Rotations',

@@ -415,6 +415,13 @@ button:disabled {
   font-size: 13px;
   line-height: 1.5;
 }
+.import-hint {
+  margin: -10px 0 14px;
+  color: #7e8da3;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 
 .sr-only {
   position: absolute;

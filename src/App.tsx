@@ -189,7 +189,7 @@ function App() {
           <p>{t.appDescription}</p>
         </div>
         <label className="language-control">
-          <span>{t.language}</span>
+          <span>Language</span>
           <select value={locale} onChange={(event) => setLocale(event.target.value as Locale)}>
             <option value="zh-Hant">繁體中文</option>
             <option value="en">English</option>
@@ -220,6 +220,8 @@ function App() {
               <span>{usableCells}/81</span>
             </div>
           </div>
+          <p className="import-hint">{t.importScreenshotHint}</p>
+
           <BoardGrid
             board={board}
             onToggle={toggleCell}
