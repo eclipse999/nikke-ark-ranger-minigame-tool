@@ -17,6 +17,7 @@ type Messages = {
   language: string;
   quantity: string;
   rotations: string;
+  usedItems: string;
   usableCells: string;
   filledCells: string;
   utilization: string;
@@ -51,6 +52,7 @@ export const messages: Record<Locale, Messages> = {
     language: '語言',
     quantity: '數量',
     rotations: '旋轉',
+    usedItems: '使用數量',
     usableCells: '可用格',
     filledCells: '填入格',
     utilization: '利用率',
@@ -83,6 +85,7 @@ export const messages: Record<Locale, Messages> = {
     language: 'Language',
     quantity: 'Qty',
     rotations: 'Rotations',
+    usedItems: 'Items Used',
     usableCells: 'Usable',
     filledCells: 'Filled',
     utilization: 'Utilization',

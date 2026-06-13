@@ -114,6 +114,14 @@ function App() {
   const usableCells = useMemo(() => countUsableCells(board), [board]);
   const currentSolution = result?.solutions[solutionIndex] ?? null;
 
+  const usedCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    currentSolution?.placements.forEach((placement) => {
+      map.set(placement.itemId, (map.get(placement.itemId) ?? 0) + 1);
+    });
+    return map;
+  }, [currentSolution]);
+
   function updateCount(itemId: string, value: string) {
     const nextValue = Math.max(0, Math.floor(Number(value) || 0));
     setCounts((current) => ({ ...current, [itemId]: nextValue }));
@@ -316,6 +324,25 @@ function App() {
                 >
                   {t.next}
                 </button>
+              </div>
+              <div className="usage-summary">
+                <h3>{t.usedItems}</h3>
+                <div className="usage-list">
+                  {items.map((item) => {
+                    const used = usedCounts.get(item.id) ?? 0;
+                    if (used === 0) return null;
+                    const shape = item.rotations[0];
+                    return (
+                      <div key={item.id} className="usage-card">
+                        <ShapePreview cells={shape.cells} width={shape.width} height={shape.height} />
+                        <div className="usage-card-body">
+                          <strong>{item.id}</strong>
+                          <span>×{used}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </>
           ) : (

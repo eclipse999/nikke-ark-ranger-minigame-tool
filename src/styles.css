@@ -426,6 +426,67 @@ button:disabled {
   text-align: center;
 }
 
+.usage-summary {
+  margin-top: 18px;
+}
+
+.usage-summary h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #9fb0c6;
+}
+
+.usage-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.usage-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 80px;
+  padding: 6px 10px;
+  border: 1px solid rgba(99, 120, 151, 0.24);
+  border-radius: 10px;
+  background: #111d2e;
+}
+
+.usage-card .shape-preview {
+  width: fit-content;
+  padding: 4px;
+  border: 1px solid #2b3d57;
+  border-radius: 6px;
+  background: #0b1424;
+  box-shadow: none;
+}
+
+.usage-card .shape-cell {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.usage-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.usage-card-body strong {
+  font-size: 13px;
+  font-weight: 800;
+  color: #eaf2ff;
+}
+
+.usage-card-body span {
+  font-size: 14px;
+  font-weight: 700;
+  color: #6ea8ff;
+}
+
 .empty-state {
   margin: 0;
   padding: 18px;
