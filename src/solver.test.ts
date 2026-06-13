@@ -16,6 +16,25 @@ describe('solver', () => {
     expect(result.solutions[0].placements).toHaveLength(1);
   });
 
+  it('does not return duplicate visual solutions for identical item copies', () => {
+    const board: Board = [
+      [true, true, false, false, false, false, false, false, false],
+      [false, false, false, false, false, false, false, false, false],
+      [false, false, false, false, false, false, false, false, false],
+      [false, false, false, false, false, false, false, false, false],
+      [false, false, false, false, false, false, false, false, false],
+      [false, false, false, false, false, false, false, false, false],
+      [false, false, false, false, false, false, false, false, false],
+      [false, false, false, false, false, false, false, false, false],
+      [false, false, false, false, false, false, false, false, false],
+    ];
+
+    const result = solveInventory(board, { P11: 2 }, { maxSolutions: 3, timeLimitMs: 100 });
+
+    expect(result.bestFilledCells).toBe(2);
+    expect(result.solutions).toHaveLength(1);
+  });
+
   it('fills a full board with single-cell items', () => {
     const result = solveInventory(createFullBoard(), { P11: 81 }, { timeLimitMs: 500 });
     expect(result.bestFilledCells).toBe(81);

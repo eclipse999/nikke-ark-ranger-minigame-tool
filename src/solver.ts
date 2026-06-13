@@ -97,18 +97,19 @@ function remainingAreaSuffix(pieces: PieceInstance[]): number[] {
   return suffix;
 }
 
+function candidateSignature(candidate: CandidateSolution): string {
+  return candidate.placements
+    .flatMap((placement) => placement.cells.map((cell) => `${cell.row},${cell.col}:${placement.itemId}`))
+    .sort()
+    .join('|');
+}
+
 function addCandidate(candidates: CandidateSolution[], candidate: CandidateSolution, maxSolutions: number) {
-  const signature = candidate.placements
-    .map((placement) => `${placement.itemId}@${placement.row},${placement.col},${placement.rotation}`)
-    .join(';');
+  const signature = candidateSignature(candidate);
 
   if (
     candidates.some(
-      (existing) =>
-        existing.filledCells === candidate.filledCells &&
-        existing.placements
-          .map((placement) => `${placement.itemId}@${placement.row},${placement.col},${placement.rotation}`)
-          .join(';') === signature,
+      (existing) => existing.filledCells === candidate.filledCells && candidateSignature(existing) === signature,
     )
   ) {
     return;
