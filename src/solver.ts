@@ -2,10 +2,22 @@ import { countUsableCells, BOARD_SIZE } from './board';
 import { items } from './items';
 import type { Board, CandidateSolution, Cell, Placement, Shape, SolverOptions, SolverResult } from './types';
 
-type PieceInstance = {
+type ItemSearchEntry = {
   itemId: string;
-  shapes: Shape[];
   area: number;
+  count: number;
+};
+
+export type CachedPlacement = Placement & {
+  shapeIndex: number;
+  area: number;
+  mask: bigint;
+};
+
+export type PlacementCache = {
+  placements: CachedPlacement[];
+  placementsByItemId: Map<string, CachedPlacement[]>;
+  placementsByCell: CachedPlacement[][];
 };
 
 const defaultOptions: Required<Pick<SolverOptions, 'maxSolutions' | 'timeLimitMs'>> = {
@@ -55,6 +67,16 @@ function placementMask(shape: Shape, row: number, col: number): bigint {
   return shape.cells.reduce((mask, cell) => mask | bitFor(row + cell.row, col + cell.col), 0n);
 }
 
+function toPlacement(placement: CachedPlacement): Placement {
+  return {
+    itemId: placement.itemId,
+    rotation: placement.rotation,
+    row: placement.row,
+    col: placement.col,
+    cells: placement.cells,
+  };
+}
+
 function normalizeCount(value: number | undefined): number {
   return Math.max(0, Math.floor(value ?? 0));
 }
@@ -67,41 +89,67 @@ function normalizePriority(value: number | undefined): number {
   return Math.min(5, Math.max(1, Math.floor(value)));
 }
 
-function collectPieceInstances(counts: Record<string, number>): PieceInstance[] {
-  const itemTypes = items
+function collectSearchEntries(counts: Record<string, number>): ItemSearchEntry[] {
+  return items
     .map((item) => ({
       itemId: item.id,
-      shapes: item.rotations,
       area: item.rotations[0]?.area ?? 0,
       count: normalizeCount(counts[item.id]),
     }))
     .filter((item) => item.count > 0)
     .sort((a, b) => b.area - a.area || a.itemId.localeCompare(b.itemId));
-
-  const maxCount = Math.max(0, ...itemTypes.map((item) => item.count));
-  const pieces: PieceInstance[] = [];
-
-  for (let copyIndex = 0; copyIndex < maxCount; copyIndex += 1) {
-    itemTypes.forEach((item) => {
-      if (copyIndex < item.count) {
-        pieces.push({
-          itemId: item.itemId,
-          shapes: item.shapes,
-          area: item.area,
-        });
-      }
-    });
-  }
-
-  return pieces;
 }
 
-function remainingAreaSuffix(pieces: PieceInstance[]): number[] {
-  const suffix = Array.from({ length: pieces.length + 1 }, () => 0);
-  for (let index = pieces.length - 1; index >= 0; index -= 1) {
-    suffix[index] = suffix[index + 1] + pieces[index].area;
+function remainingAreaTotal(entries: ItemSearchEntry[], remainingCounts: Record<string, number>): number {
+  return entries.reduce((total, entry) => total + (remainingCounts[entry.itemId] ?? 0) * entry.area, 0);
+}
+
+function createEmptyPlacementsByCell(): CachedPlacement[][] {
+  return Array.from({ length: BOARD_SIZE * BOARD_SIZE }, () => []);
+}
+
+export function buildPlacementCache(board: Board): PlacementCache {
+  const usableMask = buildUsableMask(board);
+  const placements: CachedPlacement[] = [];
+  const placementsByItemId = new Map<string, CachedPlacement[]>();
+  const placementsByCell = createEmptyPlacementsByCell();
+
+  for (const item of items) {
+    const itemPlacements: CachedPlacement[] = [];
+
+    item.rotations.forEach((shape, shapeIndex) => {
+      for (let row = 0; row <= BOARD_SIZE - shape.height; row += 1) {
+        for (let col = 0; col <= BOARD_SIZE - shape.width; col += 1) {
+          const mask = placementMask(shape, row, col);
+
+          if ((mask & usableMask) !== mask) {
+            continue;
+          }
+
+          const placement: CachedPlacement = {
+            itemId: item.id,
+            rotation: shape.rotation,
+            shapeIndex,
+            row,
+            col,
+            area: shape.area,
+            cells: absoluteCells(shape, row, col),
+            mask,
+          };
+
+          placements.push(placement);
+          itemPlacements.push(placement);
+          placement.cells.forEach((cell) => {
+            placementsByCell[cellIndex(cell.row, cell.col)].push(placement);
+          });
+        }
+      }
+    });
+
+    placementsByItemId.set(item.id, itemPlacements);
   }
-  return suffix;
+
+  return { placements, placementsByItemId, placementsByCell };
 }
 
 function candidateSignature(candidate: CandidateSolution): string {
@@ -140,6 +188,10 @@ function getSelectedCounts(counts: Record<string, number>): Record<string, numbe
       .map((item) => [item.id, normalizeCount(counts[item.id])] as const)
       .filter(([, count]) => count > 0),
   );
+}
+
+function cloneCounts(counts: Record<string, number>): Record<string, number> {
+  return { ...counts };
 }
 
 function getUsedCounts(solution: CandidateSolution | undefined): Record<string, number> {
@@ -222,8 +274,12 @@ export function solveInventory(
   const usableCells = countUsableCells(board);
   const selectedCounts = getSelectedCounts(counts);
   const selectedItemArea = getCountsArea(selectedCounts);
-  const pieces = collectPieceInstances(counts);
-  const remainingArea = remainingAreaSuffix(pieces);
+  const searchEntries = collectSearchEntries(counts);
+  const remainingCounts = cloneCounts(selectedCounts);
+  const minPlacementIndexes = Object.fromEntries(searchEntries.map((entry) => [entry.itemId, 0]));
+  const maxCount = Math.max(0, ...searchEntries.map((entry) => entry.count));
+  const totalSearchSlots = maxCount * searchEntries.length;
+  const placementCache = buildPlacementCache(board);
   const candidates: CandidateSolution[] = [];
   const placements: Placement[] = [];
 
@@ -244,7 +300,7 @@ export function solveInventory(
     addCandidate(candidates, { filledCells: score, placements }, settings.maxSolutions);
   }
 
-  function dfs(pieceIndex: number, occupiedMask: bigint, score: number): void {
+  function dfs(searchSlotIndex: number, occupiedMask: bigint, score: number): void {
     searchedNodes += 1;
 
     if ((searchedNodes & 255) === 0 && performance.now() - start > settings.timeLimitMs) {
@@ -253,45 +309,48 @@ export function solveInventory(
     }
 
     const freeCells = countBits(usableMask & ~occupiedMask);
-    if (score + Math.min(freeCells, remainingArea[pieceIndex]) < bestFilledCells) {
+    if (score + Math.min(freeCells, remainingAreaTotal(searchEntries, remainingCounts)) < bestFilledCells) {
       return;
     }
 
     remember(score);
 
-    if (pieceIndex >= pieces.length || freeCells === 0) {
+    if (searchSlotIndex >= totalSearchSlots || freeCells === 0) {
       return;
     }
 
-    const piece = pieces[pieceIndex];
+    const itemIndex = searchSlotIndex % searchEntries.length;
+    const copyIndex = Math.floor(searchSlotIndex / searchEntries.length);
+    const entry = searchEntries[itemIndex];
+    const itemPlacements = placementCache.placementsByItemId.get(entry.itemId) ?? [];
 
-    for (const shape of piece.shapes) {
-      for (let row = 0; row <= BOARD_SIZE - shape.height; row += 1) {
-        for (let col = 0; col <= BOARD_SIZE - shape.width; col += 1) {
-          const mask = placementMask(shape, row, col);
+    if (copyIndex < entry.count && (remainingCounts[entry.itemId] ?? 0) > 0) {
+      for (
+        let placementIndex = minPlacementIndexes[entry.itemId] ?? 0;
+        placementIndex < itemPlacements.length;
+        placementIndex += 1
+      ) {
+        const cachedPlacement = itemPlacements[placementIndex];
+        if ((cachedPlacement.mask & occupiedMask) !== 0n) {
+          continue;
+        }
 
-          if ((mask & usableMask) !== mask || (mask & occupiedMask) !== 0n) {
-            continue;
-          }
+        const previousMinPlacementIndex = minPlacementIndexes[entry.itemId] ?? 0;
+        minPlacementIndexes[entry.itemId] = placementIndex + 1;
+        remainingCounts[entry.itemId] -= 1;
+        placements.push(toPlacement(cachedPlacement));
+        dfs(searchSlotIndex + 1, occupiedMask | cachedPlacement.mask, score + cachedPlacement.area);
+        placements.pop();
+        remainingCounts[entry.itemId] += 1;
+        minPlacementIndexes[entry.itemId] = previousMinPlacementIndex;
 
-          placements.push({
-            itemId: piece.itemId,
-            rotation: shape.rotation,
-            row,
-            col,
-            cells: absoluteCells(shape, row, col),
-          });
-          dfs(pieceIndex + 1, occupiedMask | mask, score + shape.area);
-          placements.pop();
-
-          if (timedOut) {
-            return;
-          }
+        if (timedOut) {
+          return;
         }
       }
     }
 
-    dfs(pieceIndex + 1, occupiedMask, score);
+    dfs(searchSlotIndex + 1, occupiedMask, score);
   }
 
   dfs(0, 0n, 0);

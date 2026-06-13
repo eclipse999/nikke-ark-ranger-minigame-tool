@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDefaultBoard, createFullBoard } from './board';
-import { solveInventory } from './solver';
+import { buildPlacementCache, solveInventory } from './solver';
 import { getSelectedItemArea, summarizeSolverResult } from './solverDiagnostics';
 import type { Board } from './types';
 
@@ -21,6 +21,10 @@ function solutionSignature(result: ReturnType<typeof solveInventory>): string {
       .sort()
       .join('|') ?? ''
   );
+}
+
+function testCellIndex(row: number, col: number): number {
+  return row * 9 + col;
 }
 
 describe('solver', () => {
@@ -87,6 +91,27 @@ describe('solver', () => {
     expect(result.solutions).toHaveLength(1);
   });
 
+  it('does not create duplicate visual solutions for several identical item counts', () => {
+    const board = boardFromRows([
+      '...xxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+    ]);
+
+    const result = solveInventory(board, { P11: 3 }, { maxSolutions: 8, timeLimitMs: 100 });
+
+    expect(result.bestFilledCells).toBe(3);
+    expect(result.solutions).toHaveLength(1);
+    expect(result.usedCounts).toEqual({ P11: 3 });
+    expect(result.unusedCounts).toEqual({});
+  });
+
   it('fills a full board with single-cell items', () => {
     const result = solveInventory(createFullBoard(), { P11: 81 }, { timeLimitMs: 500 });
     expect(result.bestFilledCells).toBe(81);
@@ -135,6 +160,25 @@ describe('solver', () => {
     expect(result.placedItemArea).toBe(2);
     expect(result.selectedItemArea).toBe(3);
     expect(result.selectedPlacementRatio).toBe(2 / 3);
+  });
+
+  it('reports used and unused counts for repeated larger items', () => {
+    const board = boardFromRows([
+      '..xxxxxxx',
+      '..xxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+    ]);
+    const result = solveInventory(board, { P07: 2 }, { maxSolutions: 3, timeLimitMs: 100 });
+
+    expect(result.bestFilledCells).toBe(4);
+    expect(result.usedCounts).toEqual({ P07: 1 });
+    expect(result.unusedCounts).toEqual({ P07: 1 });
   });
 
   it('reports unsatisfied must-use items without discarding the best available solution', () => {
@@ -188,6 +232,65 @@ describe('solver', () => {
         expect(availableCells.has(`${cell.row},${cell.col}`)).toBe(true);
       });
     });
+  });
+
+  it('builds a placement cache without placements that cover blocked cells', () => {
+    const board = boardFromRows([
+      '.xxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+    ]);
+    const cache = buildPlacementCache(board);
+
+    expect(cache.placementsByItemId.get('P11')).toHaveLength(1);
+    expect(cache.placementsByItemId.get('P10')).toHaveLength(0);
+    expect(cache.placements.every((placement) => placement.cells.every((cell) => board[cell.row][cell.col]))).toBe(true);
+  });
+
+  it('indexes cached placements by every board cell they cover', () => {
+    const board = boardFromRows([
+      '..xxxxxxx',
+      '..xxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+    ]);
+    const cache = buildPlacementCache(board);
+    const topLeftPlacements = cache.placementsByCell[testCellIndex(0, 0)];
+    const bottomRightPlacements = cache.placementsByCell[testCellIndex(1, 1)];
+
+    expect(topLeftPlacements.some((placement) => placement.itemId === 'P07')).toBe(true);
+    expect(bottomRightPlacements.some((placement) => placement.itemId === 'P07')).toBe(true);
+    expect(cache.placementsByCell[testCellIndex(8, 8)]).toEqual([]);
+  });
+
+  it('uses de-duplicated item rotations when building the placement cache', () => {
+    const board = boardFromRows([
+      '..xxxxxxx',
+      '..xxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+    ]);
+    const cache = buildPlacementCache(board);
+    const squarePlacements = cache.placementsByItemId.get('P07') ?? [];
+
+    expect(new Set(squarePlacements.map((placement) => placement.rotation))).toEqual(new Set([0]));
+    expect(squarePlacements).toHaveLength(1);
   });
 
   it('uses rotations when an item cannot fit in its base orientation', () => {
