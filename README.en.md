@@ -1,5 +1,7 @@
 # NIKKE Ark Ranger Minigame Tool
 
+[繁體中文](README.md) | English
+
 A backpack optimization tool: a 9×9 inventory space planner for the Ark Ranger minigame in *Goddess of Victory: NIKKE*.
 
 Enter the board's available cells and item quantities, and the solver automatically computes the highest-utilization placement.
@@ -10,7 +12,8 @@ Enter the board's available cells and item quantities, and the solver automatica
 
 Deployed on Netlify:
 
-[https://nikke-ark-ranger-minigame-tool.netlify.app](https://nikke-ark-ranger-minigame-tool.netlify.app)
+- [English](https://nikke-ark-ranger-minigame-tool.netlify.app/?lang=en)
+- [繁體中文](https://nikke-ark-ranger-minigame-tool.netlify.app/)
 
 ## Features
 

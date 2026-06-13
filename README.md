@@ -1,5 +1,7 @@
 # NIKKE Ark Ranger Minigame Tool
 
+繁體中文 | [English](README.en.md)
+
 背包最佳化工具：為手遊《勝利女神：NIKKE》Ark Ranger 小遊戲設計的 9×9 背包空間規劃器。
 
 輸入棋盤可用區域與道具數量，求解器自動計算最高利用率的擺放方案。
@@ -10,7 +12,8 @@
 
 已部署到 Netlify，可直接使用：
 
-[https://nikke-ark-ranger-minigame-tool.netlify.app](https://nikke-ark-ranger-minigame-tool.netlify.app)
+- [繁體中文](https://nikke-ark-ranger-minigame-tool.netlify.app/)
+- [English](https://nikke-ark-ranger-minigame-tool.netlify.app/?lang=en)
 
 ## 功能
 
