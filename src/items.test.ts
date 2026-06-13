@@ -1,0 +1,38 @@
+import { describe, expect, it } from 'vitest';
+import { createRotations, items } from './items';
+
+describe('items', () => {
+  it('defines P01 through P15 only', () => {
+    expect(items.map((item) => item.id)).toEqual([
+      'P01',
+      'P02',
+      'P03',
+      'P04',
+      'P05',
+      'P06',
+      'P07',
+      'P08',
+      'P09',
+      'P10',
+      'P11',
+      'P12',
+      'P13',
+      'P14',
+      'P15',
+    ]);
+  });
+
+  it('generates unique rotations for symmetric shapes', () => {
+    expect(createRotations(['XX', 'XX'])).toHaveLength(1);
+    expect(createRotations(['X'])).toHaveLength(1);
+  });
+
+  it('keeps multiple rotations for asymmetric shapes', () => {
+    expect(createRotations(['XXX', 'X..']).length).toBeGreaterThan(1);
+  });
+
+  it('tracks shape dimensions and area', () => {
+    const item = items.find((entry) => entry.id === 'P15');
+    expect(item?.rotations[0]).toMatchObject({ width: 3, height: 2, area: 6 });
+  });
+});
