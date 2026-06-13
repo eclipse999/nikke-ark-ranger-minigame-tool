@@ -1,9 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { cloneBoard, countUsableCells, createDefaultBoard, createFullBoard } from './board';
 import { messages, type Locale } from './i18n';
 import { getItemColor } from './itemColors';
 import { items } from './items';
-import { importScreenshotImage, readImageFile } from './screenshotImport';
 import { solveInventory } from './solver';
 import type { Board, Placement, SolverResult } from './types';
 
@@ -194,11 +193,7 @@ function App() {
   const [counts, setCounts] = useState<Record<string, number>>(() => Object.fromEntries(items.map((item) => [item.id, 0])));
   const [result, setResult] = useState<SolverResult | null>(null);
   const [solutionIndex, setSolutionIndex] = useState(0);
-  const [hasImportError, setHasImportError] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const t = messages[locale];
-
   const usableCells = useMemo(() => countUsableCells(board), [board]);
   const currentSolution = result?.solutions[solutionIndex] ?? null;
 
@@ -215,7 +210,6 @@ function App() {
     setCounts((current) => ({ ...current, [itemId]: nextValue }));
     setResult(null);
     setSolutionIndex(0);
-    setHasImportError(false);
   }
 
   function toggleCell(row: number, col: number) {
@@ -226,8 +220,8 @@ function App() {
     });
     setResult(null);
     setSolutionIndex(0);
-    setHasImportError(false);
   }
+
   function bulkOpenCells(cells: { row: number; col: number }[]) {
     setBoard((current) => {
       const next = cloneBoard(current);
@@ -242,7 +236,6 @@ function App() {
     });
     setResult(null);
     setSolutionIndex(0);
-    setHasImportError(false);
   }
 
   function runSolver() {
@@ -255,43 +248,20 @@ function App() {
     setBoard(createDefaultBoard());
     setResult(null);
     setSolutionIndex(0);
-    setHasImportError(false);
   }
 
   function makeFullBoard() {
     setBoard(createFullBoard());
     setResult(null);
     setSolutionIndex(0);
-    setHasImportError(false);
   }
 
   function clearItems() {
     setCounts(Object.fromEntries(items.map((item) => [item.id, 0])));
     setResult(null);
     setSolutionIndex(0);
-    setHasImportError(false);
   }
 
-  async function importScreenshot(file: File) {
-    setIsImporting(true);
-    setHasImportError(false);
-
-    try {
-      const imageData = await readImageFile(file);
-      const imported = importScreenshotImage(imageData);
-
-      setBoard(imported.board);
-      setResult(null);
-      setSolutionIndex(0);
-    } catch {
-      setHasImportError(true);
-    } finally {
-      setIsImporting(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  }
 
   return (
     <main className="app-shell">
@@ -314,25 +284,9 @@ function App() {
           <div className="panel-heading">
             <h2>{t.board}</h2>
             <div className="board-heading-actions">
-              <label className={`file-button compact-button ${isImporting ? 'disabled' : ''}`}>
-                {isImporting ? t.importingScreenshot : t.importScreenshot}
-                <input
-                  ref={fileInputRef}
-                  accept="image/*"
-                  disabled={isImporting}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      void importScreenshot(file);
-                    }
-                  }}
-                  type="file"
-                />
-              </label>
               <span>{usableCells}/81</span>
             </div>
           </div>
-          <p className="import-hint">{t.importScreenshotHint}</p>
 
           <BoardGrid
             board={board}
@@ -348,7 +302,6 @@ function App() {
               {t.fullBoard}
             </button>
           </div>
-          {hasImportError ? <p className="import-status">{t.importFailed}</p> : null}
         </section>
 
         <section className="panel item-panel">

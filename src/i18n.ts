@@ -10,10 +10,6 @@ type Messages = {
   fullBoard: string;
   clearItems: string;
   solve: string;
-  importScreenshot: string;
-  importingScreenshot: string;
-  importFailed: string;
-  importScreenshotHint: string;
   language: string;
   quantity: string;
   rotations: string;
@@ -37,7 +33,7 @@ export const messages: Record<Locale, Messages> = {
   'zh-Hant': {
     appTitle: 'NIKKE Ark Ranger 小遊戲背包最佳化工具',
     appDescription:
-      '點擊網格切換可用/不可用(x)。設置各道具數量，實時計算並展示最優堆積方案及利用率。最佳用途：幫你整體包包',
+      '點擊或拖曳網格把不可用(x)切換為可用。設置各道具數量，實時計算並展示最優堆積方案及利用率。最佳用途：幫你整理包包',
     board: '背包 9x9',
     items: '道具數量',
     results: '結果',
@@ -45,10 +41,6 @@ export const messages: Record<Locale, Messages> = {
     fullBoard: '全部可用',
     clearItems: '清空道具',
     solve: '執行最佳化',
-    importScreenshot: '匯入截圖',
-    importingScreenshot: '辨識中...',
-    importFailed: '截圖匯入失敗，請確認圖片格式後再試一次。',
-    importScreenshotHint: '提示：截圖需包含完整的 9×9 背包網格，系統會自動辨識可用格與道具數量。',
     language: '語言',
     quantity: '數量',
     rotations: '旋轉',
@@ -70,7 +62,7 @@ export const messages: Record<Locale, Messages> = {
   en: {
     appTitle: 'NIKKE Ark Ranger Minigame Inventory Optimizer',
     appDescription:
-      'Click the grid to toggle available/unavailable (x). Set each item quantity, calculate in real time, and show the optimal stacking plan and utilization. Best use: helping you organize the whole inventory.',
+      'Click or drag across cells to mark unavailable cells (x) as available. Set each item quantity, calculate in real time, and show the optimal stacking plan and utilization. Best use: helping you organize the whole inventory.',
     board: 'Inventory 9x9',
     items: 'Item Quantities',
     results: 'Result',
@@ -78,10 +70,6 @@ export const messages: Record<Locale, Messages> = {
     fullBoard: 'All Available',
     clearItems: 'Clear Items',
     solve: 'Optimize',
-    importScreenshot: 'Import Screenshot',
-    importingScreenshot: 'Reading...',
-    importFailed: 'Screenshot import failed. Check the image format and try again.',
-    importScreenshotHint: 'Tip: screenshot must include the full 9×9 inventory grid; usable cells and item counts are auto-detected.',
     language: 'Language',
     quantity: 'Qty',
     rotations: 'Rotations',

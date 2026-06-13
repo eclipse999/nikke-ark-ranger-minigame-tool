@@ -143,10 +143,6 @@ button:disabled {
   gap: 12px;
 }
 
-.board-heading-actions .file-button {
-  min-height: 36px;
-  border-radius: 8px;
-}
 
 .board-grid {
   display: grid;
@@ -275,33 +271,6 @@ button:disabled {
   font-weight: 800;
 }
 
-.file-button {
-  display: inline-grid;
-  place-items: center;
-  min-height: 42px;
-  border: 1px solid #38bdf8;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #164e63, #0f3a4d);
-  color: #e0f7ff;
-  cursor: pointer;
-  font-weight: 800;
-  padding: 0 14px;
-  white-space: nowrap;
-}
-
-.file-button.disabled {
-  cursor: not-allowed;
-  opacity: 0.58;
-}
-
-.file-button input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-}
 
 .compact-button {
   min-height: 42px;
@@ -502,22 +471,6 @@ button:disabled {
   line-height: 1.6;
 }
 
-.import-status {
-  margin: 12px 0 0;
-  padding: 10px 12px;
-  border: 1px solid rgba(56, 189, 248, 0.24);
-  border-radius: 8px;
-  background: rgba(8, 47, 73, 0.34);
-  color: #badff0;
-  font-size: 13px;
-  line-height: 1.5;
-}
-.import-hint {
-  margin: -10px 0 14px;
-  color: #7e8da3;
-  font-size: 12px;
-  line-height: 1.45;
-}
 
 
 .sr-only {
