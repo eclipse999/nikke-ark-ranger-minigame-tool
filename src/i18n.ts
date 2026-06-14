@@ -4,6 +4,8 @@ type Messages = {
   appTitle: string;
   appDescription: string;
   board: string;
+  backpackPreset: string;
+  backpackPresetLabels: Record<string, string>;
   items: string;
   results: string;
   resetBoard: string;
@@ -41,6 +43,14 @@ export const messages: Record<Locale, Messages> = {
     appDescription:
       '點擊或拖曳網格把不可用(x)切換為可用。設置各道具數量，實時計算並展示最優堆積方案及利用率。最佳用途：幫你整理包包',
     board: '背包 9x9',
+    backpackPreset: '預設背包',
+    backpackPresetLabels: {
+      'character-1': '角色 1',
+      'character-2': '角色 2',
+      'character-3': '角色 3',
+      'character-4': '角色 4（未開放）',
+      'character-5': '角色 5（未開放）',
+    },
     items: '道具數量',
     results: '結果',
     resetBoard: '重置背包狀態',
@@ -76,6 +86,14 @@ export const messages: Record<Locale, Messages> = {
     appDescription:
       'Click or drag across cells to mark unavailable cells (x) as available. Set each item quantity, calculate in real time, and show the optimal stacking plan and utilization. Best use: helping you organize the whole inventory.',
     board: 'Inventory 9x9',
+    backpackPreset: 'Inventory Preset',
+    backpackPresetLabels: {
+      'character-1': 'Character 1',
+      'character-2': 'Character 2',
+      'character-3': 'Character 3',
+      'character-4': 'Character 4 (Locked)',
+      'character-5': 'Character 5 (Locked)',
+    },
     items: 'Item Quantities',
     results: 'Result',
     resetBoard: 'Reset Board',
