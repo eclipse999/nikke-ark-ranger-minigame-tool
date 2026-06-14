@@ -1,5 +1,7 @@
 # NIKKE Ark Ranger Minigame Tool
 
+<img src="https://github.com/user-attachments/assets/8869bd77-8bed-4dae-8638-b5bd03e23a33" width="600" />
+
 [繁體中文](README.md) | English
 
 A backpack optimization tool: a 9×9 inventory space planner for the Ark Ranger minigame in *Goddess of Victory: NIKKE*.
