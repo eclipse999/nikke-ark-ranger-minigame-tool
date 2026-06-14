@@ -1,5 +1,7 @@
 # NIKKE Ark Ranger Minigame Tool
 
+![Image]<img src="https://github.com/user-attachments/assets/6b846c7b-812c-46cb-b56d-65159ad3868c" width="600" />
+
 繁體中文 | [English](README.en.md)
 
 背包最佳化工具：為手遊《勝利女神：NIKKE》Ark Ranger 小遊戲設計的 9×9 背包空間規劃器。
