@@ -29,13 +29,23 @@ Deployed on Cloudflare Pages:
 - **Bilingual UI** — Traditional Chinese / English, with `?lang=en` URL parameter for default language; switches instantly
 - **Runs Locally** — Pure frontend, no backend required, data never leaves the browser
 
-## Quick Start
+## Local Development
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) 18 or later
+
+### Installation
 
 ```bash
-# Install dependencies
+# 1. Clone the repository
+git clone https://github.com/eclipse999/nikke-ark-ranger-minigame-tool.git
+cd nikke-ark-ranger-minigame-tool
+
+# 2. Install dependencies
 npm install
 
-# Start dev server
+# 3. Start the dev server
 npm run dev
 ```
 

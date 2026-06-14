@@ -29,13 +29,23 @@
 - **雙語介面** — 繁體中文 / English，支援 URL 參數 `?lang=en` 指定預設語言，切換後即時生效
 - **本機運行** — 純前端，無需後端，資料不離開瀏覽器
 
-## 快速開始
+## 本地開發
+
+### 環境需求
+
+- [Node.js](https://nodejs.org/) 18 或以上
+
+### 安裝與啟動
 
 ```bash
-# 安裝依賴
+# 1. 複製專案
+git clone https://github.com/eclipse999/nikke-ark-ranger-minigame-tool.git
+cd nikke-ark-ranger-minigame-tool
+
+# 2. 安裝依賴
 npm install
 
-# 啟動開發伺服器
+# 3. 啟動開發伺服器
 npm run dev
 ```
 
