@@ -1,21 +1,11 @@
 import type { Board } from './types';
+import { backpackPresets, type BackpackPresetId } from './backpackPresets';
 
 export const BOARD_SIZE = 9;
 
-const defaultRows = [
-  'xxxxxxxxx',
-  'xxxxxxxxx',
-  'xxx...xxx',
-  'xxx...xxx',
-  'xxx...xxx',
-  'xxx...xxx',
-  'xxx...xxx',
-  'xxxxxxxxx',
-  'xxxxxxxxx',
-];
-
-export function createDefaultBoard(): Board {
-  return defaultRows.map((row) => [...row].map((cell) => cell === '.'));
+export function createDefaultBoard(presetId: BackpackPresetId = 'character-1'): Board {
+  const preset = backpackPresets.find((entry) => entry.id === presetId && entry.enabled) ?? backpackPresets[0];
+  return preset.rows.map((row) => [...row].map((cell) => cell === '.'));
 }
 
 export function createFullBoard(): Board {

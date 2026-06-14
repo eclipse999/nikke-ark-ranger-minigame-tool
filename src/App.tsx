@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { backpackPresets, type BackpackPresetId } from './backpackPresets';
 import { cloneBoard, countUsableCells, createDefaultBoard, createFullBoard } from './board';
 import { messages, type Locale } from './i18n';
 import { getItemColor } from './itemColors';
@@ -232,7 +233,8 @@ function App() {
     const language = new URLSearchParams(window.location.search).get('lang');
     return language === 'en' ? 'en' : 'zh-Hant';
   });
-  const [board, setBoard] = useState<Board>(() => createDefaultBoard());
+  const [backpackPresetId, setBackpackPresetId] = useState<BackpackPresetId>('character-1');
+  const [board, setBoard] = useState<Board>(() => createDefaultBoard('character-1'));
   const [counts, setCounts] = useState<Record<string, number>>(() => Object.fromEntries(items.map((item) => [item.id, 0])));
   const [countInputs, setCountInputs] = useState<Record<string, string>>(() => Object.fromEntries(items.map((item) => [item.id, '0'])));
   const [priorityByItemId, setPriorityByItemId] = useState<Record<string, number>>(() => Object.fromEntries(items.map((item) => [item.id, 1])));
@@ -309,8 +311,16 @@ function App() {
     setResult(nextResult);
   }
 
+  function updateBackpackPreset(value: BackpackPresetId) {
+    const preset = backpackPresets.find((entry) => entry.id === value);
+    if (!preset?.enabled) return;
+    setBackpackPresetId(value);
+    setBoard(createDefaultBoard(value));
+    setResult(null);
+  }
+
   function resetBoard() {
-    setBoard(createDefaultBoard());
+    setBoard(createDefaultBoard(backpackPresetId));
     setResult(null);
   }
 
@@ -357,6 +367,16 @@ function App() {
               <span>{usableCells}/81</span>
             </div>
           </div>
+          <label className="backpack-preset-control">
+            <span>{t.backpackPreset}</span>
+            <select value={backpackPresetId} onChange={(event) => updateBackpackPreset(event.target.value as BackpackPresetId)}>
+              {backpackPresets.map((preset) => (
+                <option key={preset.id} value={preset.id} disabled={!preset.enabled}>
+                  {t.backpackPresetLabels[preset.id]}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <BoardGrid
             board={board}

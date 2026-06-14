@@ -158,6 +158,25 @@ button:disabled {
   gap: 12px;
 }
 
+.backpack-preset-control {
+  display: grid;
+  gap: 6px;
+  margin: -4px 0 14px;
+  color: #a8b6c8;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.backpack-preset-control select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #2d3d55;
+  border-radius: 8px;
+  background: #101c2d;
+  color: #e6edf7;
+  padding: 0 10px;
+}
+
 
 .board-grid {
   display: grid;
