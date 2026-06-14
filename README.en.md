@@ -18,7 +18,7 @@ Deployed on Cloudflare Pages:
 ## Features
 
 - **9×9 Board** — Click or drag across cells to mark unavailable cells (x) as available, with reset and fill-all shortcuts
-- **P01–P15 Complete Items** — All 15 item types, auto-generating 0°/90°/180°/270° rotated shapes with deduplication
+- **P01–P14 Complete Items** — All 14 item types, auto-generating 0°/90°/180°/270° rotated shapes with deduplication
 - **Item Priority 1–5** — Each item can be assigned a priority; higher numbers have higher weight and are preferred when space is tight
 - **Must-use Items** — Mark selected items as must-use; when placements conflict, the solver prioritizes satisfying must-use items and reports whether they were all placed
 - **Unplaced Item Summary** — Shows which items were placed and which could not fit, so trade-offs are easy to review
@@ -70,7 +70,7 @@ Open your browser at `http://localhost:5173`.
 src/
 ├── types.ts           # Shared type definitions (Board, Shape, ItemDefinition, SolverResult)
 ├── board.ts           # Board creation, cloning, usable cell counting
-├── items.ts           # P01–P15 item definitions and rotation shape generation
+├── items.ts           # P01–P14 item definitions and rotation shape generation
 ├── solver.ts          # Placement-cache + pivot-cell DFS solver (with time limit and pruning)
 ├── i18n.ts            # Traditional Chinese / English strings
 ├── App.tsx            # Main component: three-column UI, solver state management

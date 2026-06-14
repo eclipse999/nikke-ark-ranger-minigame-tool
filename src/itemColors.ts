@@ -14,8 +14,7 @@ export const itemColors = new Map<string, string>([
   ['P11', 'hsl(18 82% 66%)'],
   ['P12', 'hsl(252 64% 60%)'],
   ['P13', 'hsl(70 70% 48%)'],
-  ['P14', 'hsl(315 70% 58%)'],
-  ['P15', 'hsl(172 58% 46%)'],
+  ['P14', 'hsl(172 58% 46%)'],
 ]);
 
 export function getItemColor(itemId: string): string {

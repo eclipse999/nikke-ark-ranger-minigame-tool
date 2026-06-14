@@ -5,7 +5,7 @@ const rotationAngles: Rotation[] = [0, 90, 180, 270];
 const itemBaseShapes: Array<Pick<ItemDefinition, 'id' | 'baseShape'>> = [
   { id: 'P01', baseShape: ['X.', 'X.', 'X.', 'XX'] },
   { id: 'P02', baseShape: ['.X', '.X', 'XX', '.X'] },
-  { id: 'P03', baseShape: ['XXXX', '.XX.'] },
+  { id: 'P03', baseShape: ['X.', 'X.', 'XX', 'X.'] },
   { id: 'P04', baseShape: ['XXX', '.X.', '.X.'] },
   { id: 'P05', baseShape: ['XXX', 'X..'] },
   { id: 'P06', baseShape: ['.XX', 'XX.'] },
@@ -16,8 +16,7 @@ const itemBaseShapes: Array<Pick<ItemDefinition, 'id' | 'baseShape'>> = [
   { id: 'P11', baseShape: ['X'] },
   { id: 'P12', baseShape: ['.X.', 'XXX', '.X.'] },
   { id: 'P13', baseShape: ['XXX', '.X.'] },
-  { id: 'P14', baseShape: ['XXX', '.X.', '.X.'] },
-  { id: 'P15', baseShape: ['XXX', 'XXX'] },
+  { id: 'P14', baseShape: ['XXX', 'XXX'] },
 ];
 
 export function parseShape(shapeRows: string[]): Cell[] {
