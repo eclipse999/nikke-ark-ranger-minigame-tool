@@ -1,6 +1,10 @@
 # NIKKE Ark Ranger Minigame Tool
 
-<img src="https://github.com/user-attachments/assets/8869bd77-8bed-4dae-8638-b5bd03e23a33" width="600" />
+<p align="center">
+
+  <img src="https://github.com/user-attachments/assets/8869bd77-8bed-4dae-8638-b5bd03e23a33" width="600" alt="Demo">
+
+</p>
 
 [繁體中文](README.md) | English
 
