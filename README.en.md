@@ -23,6 +23,7 @@ Deployed on Cloudflare Pages:
 
 ## Features
 
+- **Inventory Presets** — Switch between the starting inventory layouts for Characters 1–3; Characters 4–5 are kept as locked placeholders
 - **9×9 Board** — Click or drag across cells to mark unavailable cells (x) as available, with reset and fill-all shortcuts
 - **P01–P14 Complete Items** — All 14 item types, auto-generating 0°/90°/180°/270° rotated shapes with deduplication
 - **Item Priority 1–5** — Each item can be assigned a priority; higher numbers have higher weight and are preferred when space is tight
@@ -57,12 +58,13 @@ Open your browser at `http://localhost:5173`.
 
 ## Usage
 
-1. **Set up the board** — Click or drag cells to mark them as available; or use "Fill All" / "Reset" buttons
-2. **Enter quantities** — Fill in how many of each item you have in the center panel
-3. **Set trade-offs** — Priority defaults to 1 and can be raised to 5; higher numbers have higher weight and are kept first when space is tight. Check "Must-use" to ask the solver to prefer keeping that item
-4. **Run the solver** — Click "Optimize"; the solver finds the best placement it can within the time limit
-5. **Review results** — The right panel shows usable cells, filled cells, item placement rate, inventory utilization, placed items, and unplaced items. Must-use status appears only when at least one item is marked must-use
-6. **Switch language** — Use the language dropdown at the top right
+1. **Choose an inventory preset** — Select the starting inventory layout for Character 1–3 in the left panel; Characters 4–5 are currently locked
+2. **Set up the board** — Click or drag cells to mark them as available; or use "All Available" / "Reset Board" buttons. Reset returns to the currently selected preset
+3. **Enter quantities** — Fill in how many of each item you have in the center panel
+4. **Set trade-offs** — Priority defaults to 1 and can be raised to 5; higher numbers have higher weight and are kept first when space is tight. Check "Must-use" to ask the solver to prefer keeping that item
+5. **Run the solver** — Click "Optimize"; the solver finds the best placement it can within the time limit
+6. **Review results** — The right panel shows usable cells, filled cells, item placement rate, inventory utilization, placed items, and unplaced items. Must-use status appears only when at least one item is marked must-use
+7. **Switch language** — Use the language dropdown at the top right
 
 ## Commands
 
@@ -85,6 +87,7 @@ Open your browser at `http://localhost:5173`.
 ```
 src/
 ├── types.ts           # Shared type definitions (Board, Shape, ItemDefinition, SolverResult)
+├── backpackPresets.ts # Character starting inventory layouts and availability
 ├── board.ts           # Board creation, cloning, usable cell counting
 ├── items.ts           # P01–P14 item definitions and rotation shape generation
 ├── solver.ts          # Placement-cache + pivot-cell DFS solver (with time limit and pruning)
