@@ -130,7 +130,7 @@ describe('solver', () => {
   });
 
   it('never fills more cells than are usable when selected item area exceeds board capacity', () => {
-    const counts = { P15: 20 };
+    const counts = { P14: 20 };
     const result = solveInventory(createDefaultBoard(), counts, { maxSolutions: 3, timeLimitMs: 500 });
 
     expect(getSelectedItemArea(counts)).toBeGreaterThan(result.usableCells);
@@ -288,7 +288,7 @@ describe('solver', () => {
   });
 
   it('handles items that cannot fit', () => {
-    const result = solveInventory(createDefaultBoard(), { P15: 1 }, { timeLimitMs: 100 });
+    const result = solveInventory(createDefaultBoard(), { P14: 1 }, { timeLimitMs: 100 });
     expect(result.bestFilledCells).toBe(6);
   });
 
@@ -422,7 +422,7 @@ describe('solver', () => {
         P02: 8,
         P03: 8,
         P12: 8,
-        P15: 8,
+        P14: 8,
       },
       { maxSolutions: 2, timeLimitMs: 0 },
     );
@@ -442,7 +442,7 @@ describe('solver', () => {
         P02: 20,
         P03: 20,
         P12: 20,
-        P15: 20,
+        P14: 20,
       },
       { maxSolutions: 2, timeLimitMs: 0 },
     );
@@ -526,7 +526,7 @@ describe('solver', () => {
       {
         name: 'over capacity',
         board: createDefaultBoard(),
-        counts: { P15: 12, P12: 6, P11: 10 },
+        counts: { P14: 12, P12: 6, P11: 10 },
       },
       {
         name: 'many identical items pressure',
@@ -571,7 +571,7 @@ describe('solver', () => {
         P11: 1,
         P12: 2,
         P13: 1,
-        P15: 2,
+        P14: 2,
       },
       { maxSolutions: 3, timeLimitMs: 1000 },
     );
@@ -582,11 +582,11 @@ describe('solver', () => {
   describe('priority and must-use behavior', () => {
     it('prioritizes higher-priority items when selected item area exceeds usable cells', () => {
       const board = createDefaultBoard();
-      const counts = { P15: 6, P12: 3, P11: 8 };
+      const counts = { P14: 6, P12: 3, P11: 8 };
       const options = {
         maxSolutions: 3,
         timeLimitMs: 500,
-        priorityByItemId: { P12: 5, P11: 3, P15: 1 },
+        priorityByItemId: { P12: 5, P11: 3, P14: 1 },
       };
 
       const result = solveInventory(board, counts, options);
@@ -596,7 +596,7 @@ describe('solver', () => {
 
     it('keeps must-use items in the best solution when they can be placed', () => {
       const board = createFullBoard();
-      const counts = { P15: 12, P12: 1 };
+      const counts = { P14: 12, P12: 1 };
       const options = {
         maxSolutions: 3,
         timeLimitMs: 500,

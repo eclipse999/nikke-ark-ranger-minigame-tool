@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createRotations, items } from './items';
 
 describe('items', () => {
-  it('defines P01 through P15 only', () => {
+  it('defines P01 through P14 only', () => {
     expect(items.map((item) => item.id)).toEqual([
       'P01',
       'P02',
@@ -18,8 +18,11 @@ describe('items', () => {
       'P12',
       'P13',
       'P14',
-      'P15',
     ]);
+  });
+
+  it('keeps P03 as the provided vertical five-cell shape', () => {
+    expect(items.find((entry) => entry.id === 'P03')?.baseShape).toEqual(['X.', 'X.', 'XX', 'X.']);
   });
 
   it('generates unique rotations for symmetric shapes', () => {
@@ -32,7 +35,7 @@ describe('items', () => {
   });
 
   it('tracks shape dimensions and area', () => {
-    const item = items.find((entry) => entry.id === 'P15');
+    const item = items.find((entry) => entry.id === 'P14');
     expect(item?.rotations[0]).toMatchObject({ width: 3, height: 2, area: 6 });
   });
 });
