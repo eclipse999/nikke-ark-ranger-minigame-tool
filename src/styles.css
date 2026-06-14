@@ -167,6 +167,8 @@ button:disabled {
   max-width: 100%;
   background: transparent;
   gap: var(--board-cell-gap, 8px);
+  cursor: crosshair;
+  user-select: none;
 }
 
 .board-cell {

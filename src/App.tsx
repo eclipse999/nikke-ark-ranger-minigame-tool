@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { cloneBoard, countUsableCells, createDefaultBoard, createFullBoard } from './board';
 import { messages, type Locale } from './i18n';
 import { getItemColor } from './itemColors';
@@ -72,6 +72,8 @@ function BoardGrid({
   }, [placements]);
 
   const [selection, setSelection] = useState<{ start: { row: number; col: number }; end: { row: number; col: number } } | null>(null);
+  const selectionRef = useRef<typeof selection>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
 
   function getCellFromEvent(event: React.PointerEvent<HTMLDivElement>): { row: number; col: number } | null {
     const pointerTarget = document.elementFromPoint(event.clientX, event.clientY);
@@ -82,6 +84,29 @@ function BoardGrid({
     const col = Number(cell.dataset.col);
     if (Number.isNaN(row) || Number.isNaN(col)) return null;
     return { row, col };
+  }
+
+  function setActiveSelection(nextSelection: typeof selection) {
+    selectionRef.current = nextSelection;
+    setSelection(nextSelection);
+  }
+
+  function capturePointer(element: HTMLDivElement, pointerId: number) {
+    try {
+      element.setPointerCapture(pointerId);
+    } catch {
+      // Synthetic pointer events used by tests may not have an active pointer.
+    }
+  }
+
+  function releasePointer(element: HTMLDivElement, pointerId: number) {
+    try {
+      if (element.hasPointerCapture(pointerId)) {
+        element.releasePointerCapture(pointerId);
+      }
+    } catch {
+      // Ignore non-active synthetic pointer ids.
+    }
   }
 
   function commitSelection(start: { row: number; col: number }, end: { row: number; col: number }) {
@@ -104,26 +129,30 @@ function BoardGrid({
     event.preventDefault();
     const cell = getCellFromEvent(event);
     if (!cell) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setSelection({ start: cell, end: cell });
+    capturePointer(event.currentTarget, event.pointerId);
+    setActiveSelection({ start: cell, end: cell });
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
-    if (!selection) return;
+    if (!selectionRef.current) return;
     event.preventDefault();
     const cell = getCellFromEvent(event);
     if (!cell) return;
-    setSelection((current) => (current && (current.end.row !== cell.row || current.end.col !== cell.col) ? { ...current, end: cell } : current));
+    setSelection((current) => {
+      if (!current || (current.end.row === cell.row && current.end.col === cell.col)) return current;
+      const nextSelection = { ...current, end: cell };
+      selectionRef.current = nextSelection;
+      return nextSelection;
+    });
   }
 
   function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
-    if (!selection) return;
+    const activeSelection = selectionRef.current;
+    if (!activeSelection) return;
     event.preventDefault();
-    const { start, end } = selection;
-    setSelection(null);
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
+    releasePointer(event.currentTarget, event.pointerId);
+    const { start, end } = activeSelection;
+    setActiveSelection(null);
     if (start.row === end.row && start.col === end.col) {
       onToggle?.(start.row, start.col);
     } else {
@@ -132,17 +161,21 @@ function BoardGrid({
   }
 
   function handlePointerLeave(event: React.PointerEvent<HTMLDivElement>) {
-    if (!selection) return;
+    const activeSelection = selectionRef.current;
+    if (!activeSelection || event.currentTarget.hasPointerCapture(event.pointerId)) return;
     event.preventDefault();
-    const { start, end } = selection;
-    setSelection(null);
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
+    const { start, end } = activeSelection;
+    setActiveSelection(null);
     if (start.row === end.row && start.col === end.col) {
       return;
     }
     commitSelection(start, end);
+  }
+
+  function handlePointerCancel(event: React.PointerEvent<HTMLDivElement>) {
+    if (!selectionRef.current) return;
+    releasePointer(event.currentTarget, event.pointerId);
+    setActiveSelection(null);
   }
 
   const selectionBounds = useMemo(() => {
@@ -157,12 +190,13 @@ function BoardGrid({
 
   return (
     <div
+      ref={gridRef}
       className="board-grid"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerLeave}
-      onPointerCancel={handlePointerLeave}
+      onPointerCancel={handlePointerCancel}
       style={{ touchAction: 'none' }}
     >
       {board.flatMap((rowCells, row) =>
