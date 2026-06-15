@@ -3,6 +3,7 @@ export type Locale = 'zh-Hant' | 'en';
 type Messages = {
   appTitle: string;
   appDescription: string;
+  github: string;
   board: string;
   backpackPreset: string;
   backpackPresetLabels: Record<string, string>;
@@ -14,6 +15,7 @@ type Messages = {
   resetPriorities: string;
   solve: string;
   priorityHint: string;
+  priorityTooltip: string;
   language: string;
   quantity: string;
   priority: string;
@@ -35,14 +37,21 @@ type Messages = {
   unavailable: string;
   available: string;
   occupied: string;
+  toggleAvailability: string;
+  resultStatus: {
+    complete: string;
+    good: string;
+    notice: string;
+    needsAdjustment: string;
+  };
 };
 
 export const messages: Record<Locale, Messages> = {
   'zh-Hant': {
     appTitle: 'NIKKE Ark Ranger 小遊戲背包最佳化工具',
-    appDescription:
-      '點擊或拖曳網格把不可用(x)切換為可用。設置各道具數量，實時計算並展示最優堆積方案及利用率。最佳用途：幫你整理包包',
-    board: '背包 9x9',
+    appDescription: '切換可用格、設定道具數量，快速計算最佳堆疊與背包利用率。',
+    github: 'GitHub ↗',
+    board: '① 背包 9x9',
     backpackPreset: '預設背包',
     backpackPresetLabels: {
       'character-1': '角色 1',
@@ -51,14 +60,15 @@ export const messages: Record<Locale, Messages> = {
       'character-4': '角色 4（未開放）',
       'character-5': '角色 5（未開放）',
     },
-    items: '道具數量',
-    results: '結果',
-    resetBoard: '重置背包狀態',
+    items: '② 道具數量',
+    results: '③ 結果',
+    resetBoard: '重置',
     fullBoard: '全部可用',
     clearItems: '清空道具',
     resetPriorities: '重置優先權',
     solve: '執行最佳化',
-    priorityHint: '優先權數字越大越優先；空間不足時會偏好權重較高的道具。',
+    priorityHint: '?',
+    priorityTooltip: '優先權數字越大越優先；空間不足時會偏好放置優先權較高的道具。',
     language: '語言',
     quantity: '數量',
     priority: '優先權',
@@ -80,12 +90,19 @@ export const messages: Record<Locale, Messages> = {
     unavailable: '不可用',
     available: '可用',
     occupied: '已填入',
+    toggleAvailability: '點擊切換可用 / 不可用',
+    resultStatus: {
+      complete: '完成',
+      good: '良好',
+      notice: '注意',
+      needsAdjustment: '需調整',
+    },
   },
   en: {
     appTitle: 'NIKKE Ark Ranger Minigame Inventory Optimizer',
-    appDescription:
-      'Click or drag across cells to mark unavailable cells (x) as available. Set each item quantity, calculate in real time, and show the optimal stacking plan and utilization. Best use: helping you organize the whole inventory.',
-    board: 'Inventory 9x9',
+    appDescription: 'Toggle cells, set item counts, then optimize placement and inventory utilization.',
+    github: 'GitHub ↗',
+    board: '① Backpack 9x9',
     backpackPreset: 'Inventory Preset',
     backpackPresetLabels: {
       'character-1': 'Character 1',
@@ -94,21 +111,22 @@ export const messages: Record<Locale, Messages> = {
       'character-4': 'Character 4 (Locked)',
       'character-5': 'Character 5 (Locked)',
     },
-    items: 'Item Quantities',
-    results: 'Result',
-    resetBoard: 'Reset Board',
+    items: '② Items',
+    results: '③ Result',
+    resetBoard: 'Reset',
     fullBoard: 'All Available',
     clearItems: 'Clear Items',
     resetPriorities: 'Reset Priority',
     solve: 'Optimize',
-    priorityHint: 'Higher priority numbers are preferred when space is limited.',
+    priorityHint: '?',
+    priorityTooltip: 'Higher priority numbers are placed first when space is limited.',
     language: 'Language',
     quantity: 'Qty',
     priority: 'Priority',
     mustUse: 'Must-use',
     rotations: 'Rotations',
     usedItems: 'Items Used',
-    unusedItems: 'Items Not Placed',
+    unusedItems: 'Unplaced items',
     noUnusedItems: 'All selected items were placed.',
     usableCells: 'Usable',
     filledCells: 'Filled',
@@ -123,5 +141,12 @@ export const messages: Record<Locale, Messages> = {
     unavailable: 'Unavailable',
     available: 'Available',
     occupied: 'Occupied',
+    toggleAvailability: 'Click to toggle available / unavailable',
+    resultStatus: {
+      complete: 'Complete',
+      good: 'Good',
+      notice: 'Notice',
+      needsAdjustment: 'Needs adjustment',
+    },
   },
 };

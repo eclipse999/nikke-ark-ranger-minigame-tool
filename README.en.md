@@ -31,7 +31,9 @@ Deployed on Cloudflare Pages:
 - **Unplaced Item Summary** — Shows which items were placed and which could not fit, so trade-offs are easy to review
 - **Backtracking Solver** — Uses a placement cache and pivot-cell DFS, with conservative pruning and a configurable time limit (default 1 second)
 - **Best Placement View** — Shows the best placement for the current scoring order in the results panel
+- **Result Status Hints** — Item placement rate shows a compact Complete, Good, Notice, or Needs adjustment state
 - **Bilingual UI** — Traditional Chinese / English, with `?lang=en` URL parameter for default language; switches instantly
+- **GitHub Link** — A top-right project link opens the source repository
 - **Runs Locally** — Pure frontend, no backend required, data never leaves the browser
 
 ## Local Development
@@ -59,12 +61,12 @@ Open your browser at `http://localhost:5173`.
 ## Usage
 
 1. **Choose an inventory preset** — Select the starting inventory layout for Character 1–3 in the left panel; Characters 4–5 are currently locked
-2. **Set up the board** — Click or drag cells to mark them as available; or use "All Available" / "Reset Board" buttons. Reset returns to the currently selected preset
+2. **Set up the board** — Click or drag cells to mark them as available; or use "All Available" / "Reset" buttons. Reset returns to the currently selected preset
 3. **Enter quantities** — Fill in how many of each item you have in the center panel
 4. **Set trade-offs** — Priority defaults to 1 and can be raised to 5; higher numbers have higher weight and are kept first when space is tight. Check "Must-use" to ask the solver to prefer keeping that item
 5. **Run the solver** — Click "Optimize"; the solver finds the best placement it can within the time limit
-6. **Review results** — The right panel shows usable cells, filled cells, item placement rate, inventory utilization, placed items, and unplaced items. Must-use status appears only when at least one item is marked must-use
-7. **Switch language** — Use the language dropdown at the top right
+6. **Review results** — The right panel shows usable cells, filled cells, item placement status, inventory utilization, placed items, and unplaced items. Must-use status appears only when at least one item is marked must-use
+7. **Switch language** — Use the top-right language dropdown
 
 ## Commands
 

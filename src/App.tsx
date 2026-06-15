@@ -14,8 +14,8 @@ function ShapePreview({ cells, width, height }: { cells: { row: number; col: num
     <div
       className="shape-preview"
       style={{
-        gridTemplateColumns: `repeat(${width}, 12px)`,
-        gridTemplateRows: `repeat(${height}, 12px)`,
+        gridTemplateColumns: `repeat(${width}, 10px)`,
+        gridTemplateRows: `repeat(${height}, 10px)`,
       }}
     >
       {Array.from({ length: width * height }, (_, index) => {
@@ -38,7 +38,7 @@ function BoardGrid({
   placements?: Placement[];
   onToggle?: (row: number, col: number) => void;
   onBulkOpen?: (cells: { row: number; col: number }[]) => void;
-  labels: { available: string; unavailable: string; occupied: string };
+  labels: { available: string; unavailable: string; occupied: string; toggleAvailability?: string };
 }) {
   const occupied = useMemo(() => {
     const map = new Map<string, { placement: Placement; color: string; edgeClassName: string; instanceClassName: string }>();
@@ -203,7 +203,8 @@ function BoardGrid({
       {board.flatMap((rowCells, row) =>
         rowCells.map((available, col) => {
           const placed = occupied.get(`${row},${col}`);
-          const title = placed ? `${placed.placement.itemId} ${labels.occupied}` : available ? labels.available : labels.unavailable;
+          const stateTitle = placed ? `${placed.placement.itemId} ${labels.occupied}` : available ? labels.available : labels.unavailable;
+          const title = onToggle && !placed && labels.toggleAvailability ? `${stateTitle} - ${labels.toggleAvailability}` : stateTitle;
           const inSelection = selectionBounds && row >= selectionBounds.minRow && row <= selectionBounds.maxRow && col >= selectionBounds.minCol && col <= selectionBounds.maxCol;
 
           return (
@@ -239,12 +240,22 @@ function App() {
   const [countInputs, setCountInputs] = useState<Record<string, string>>(() => Object.fromEntries(items.map((item) => [item.id, '0'])));
   const [priorityByItemId, setPriorityByItemId] = useState<Record<string, number>>(() => Object.fromEntries(items.map((item) => [item.id, 1])));
   const [mustUseItemIds, setMustUseItemIds] = useState<string[]>([]);
+  const [activePriorityHintItemId, setActivePriorityHintItemId] = useState<string | null>(null);
   const [result, setResult] = useState<SolverResult | null>(null);
   const t = messages[locale];
   const usableCells = useMemo(() => countUsableCells(board), [board]);
+  const totalCells = board.length * (board[0]?.length ?? 0);
   const currentSolution = result?.solutions[0] ?? null;
   const mustUseSet = useMemo(() => new Set(mustUseItemIds), [mustUseItemIds]);
   const hasMustUseItems = mustUseItemIds.length > 0;
+  const resultStatus = useMemo(() => {
+    if (!result) return null;
+    const ratio = result.selectedPlacementRatio;
+    if (ratio >= 1) return { key: 'complete', label: t.resultStatus.complete };
+    if (ratio >= 0.9) return { key: 'good', label: t.resultStatus.good };
+    if (ratio >= 0.5) return { key: 'notice', label: t.resultStatus.notice };
+    return { key: 'needs-adjustment', label: t.resultStatus.needsAdjustment };
+  }, [result, t.resultStatus]);
 
   const usedCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -350,21 +361,28 @@ function App() {
           <h1>{t.appTitle}</h1>
           <p>{t.appDescription}</p>
         </div>
-        <label className="language-control">
-          <span>Language</span>
-          <select value={locale} onChange={(event) => setLocale(event.target.value as Locale)}>
-            <option value="zh-Hant">繁體中文</option>
-            <option value="en">English</option>
-          </select>
-        </label>
       </header>
+
+      <div className="workspace-tools">
+        <div className="topbar-tools">
+          <a className="github-link" href="https://github.com/eclipse999/nikke-ark-ranger-minigame-tool" target="_blank" rel="noopener noreferrer">
+            {t.github}
+          </a>
+          <label className="language-control" aria-label={t.language}>
+            <select value={locale} onChange={(event) => setLocale(event.target.value as Locale)}>
+              <option value="zh-Hant">繁體中文</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+        </div>
+      </div>
 
       <section className="workspace">
         <section className="panel board-panel">
           <div className="panel-heading">
             <h2>{t.board}</h2>
             <div className="board-heading-actions">
-              <span>{usableCells}/81</span>
+              <span>{usableCells}/{totalCells}</span>
             </div>
           </div>
           <label className="backpack-preset-control">
@@ -382,14 +400,14 @@ function App() {
             board={board}
             onToggle={toggleCell}
             onBulkOpen={bulkOpenCells}
-            labels={{ available: t.available, unavailable: t.unavailable, occupied: t.occupied }}
+            labels={{ available: t.available, unavailable: t.unavailable, occupied: t.occupied, toggleAvailability: t.toggleAvailability }}
           />
           <div className="button-row">
-            <button type="button" onClick={resetBoard}>
-              {t.resetBoard}
-            </button>
             <button type="button" onClick={makeFullBoard}>
               {t.fullBoard}
+            </button>
+            <button type="button" onClick={resetBoard}>
+              {t.resetBoard}
             </button>
           </div>
         </section>
@@ -397,39 +415,58 @@ function App() {
         <section className="panel item-panel">
           <div className="panel-heading">
             <h2>{t.items}</h2>
-            <div className="panel-actions">
-              <button className="primary-button compact-button" type="button" onClick={clearItems}>
+          </div>
+          <div className="panel-actions">
+            <div className="secondary-actions">
+              <button className="secondary-button compact-button" type="button" onClick={clearItems}>
                 {t.clearItems}
               </button>
-              <button className="primary-button compact-button" type="button" onClick={resetPriorities}>
+              <button className="secondary-button compact-button" type="button" onClick={resetPriorities}>
                 {t.resetPriorities}
               </button>
-              <button className="primary-button compact-button" type="button" onClick={runSolver}>
-                {t.solve}
-              </button>
             </div>
+            <button className="primary-button compact-button" type="button" onClick={runSolver}>
+              {t.solve}
+            </button>
           </div>
-          <p className="priority-hint">{t.priorityHint}</p>
           <div className="item-list">
             {items.map((item) => (
               <article className="item-row" key={item.id}>
-                <div className="item-main">
-                  <strong>{item.id}</strong>
-                  <ShapePreview cells={item.rotations[0].cells} width={item.rotations[0].width} height={item.rotations[0].height} />
+                <div className="item-top">
+                  <div className="item-main">
+                    <strong>{item.id}</strong>
+                    <ShapePreview cells={item.rotations[0].cells} width={item.rotations[0].width} height={item.rotations[0].height} />
+                  </div>
+                  <label className="quantity-control">
+                    <span>{t.quantity}</span>
+                    <input
+                      min="0"
+                      inputMode="numeric"
+                      type="number"
+                      value={countInputs[item.id] ?? String(counts[item.id] ?? 0)}
+                      onChange={(event) => updateCount(item.id, event.target.value)}
+                    />
+                  </label>
                 </div>
-                <label>
-                  <span className="sr-only">{t.quantity}</span>
-                  <input
-                    min="0"
-                    inputMode="numeric"
-                    type="number"
-                    value={countInputs[item.id] ?? String(counts[item.id] ?? 0)}
-                    onChange={(event) => updateCount(item.id, event.target.value)}
-                  />
-                </label>
                 <div className="item-controls">
                   <label className="priority-control">
-                    <span>{t.priority}</span>
+                    <span>
+                      {t.priority}
+                      <button
+                        className={`hint-button ${activePriorityHintItemId === item.id ? 'is-open' : ''}`}
+                        type="button"
+                        aria-label={t.priorityTooltip}
+                        aria-expanded={activePriorityHintItemId === item.id}
+                        data-tooltip={t.priorityTooltip}
+                        onClick={() => setActivePriorityHintItemId(item.id)}
+                        onMouseEnter={() => setActivePriorityHintItemId(item.id)}
+                        onMouseLeave={() => setActivePriorityHintItemId(null)}
+                        onFocus={() => setActivePriorityHintItemId(item.id)}
+                        onBlur={() => setActivePriorityHintItemId(null)}
+                      >
+                        {t.priorityHint}
+                      </button>
+                    </span>
                     <select value={priorityByItemId[item.id] ?? 1} onChange={(event) => updatePriority(item.id, event.target.value)}>
                       {[1, 2, 3, 4, 5].map((priority) => (
                         <option key={priority} value={priority}>
@@ -469,9 +506,10 @@ function App() {
                   <span>{t.filledCells}</span>
                   <strong>{result.bestFilledCells}</strong>
                 </div>
-                <div>
+                <div className={resultStatus ? `status-stat ${resultStatus.key}` : undefined}>
                   <span>{t.placementRatio}</span>
                   <strong>{Math.round(result.selectedPlacementRatio * 1000) / 10}%</strong>
+                  {resultStatus && <em>{resultStatus.label}</em>}
                 </div>
                 <div>
                   <span>{t.utilization}</span>
@@ -514,7 +552,7 @@ function App() {
                   })}
                 </div>
               </div>
-              <div className="usage-summary">
+              <div className={Object.keys(result.unusedCounts).length > 0 ? 'usage-summary unused-warning' : 'usage-summary'}>
                 <h3>{t.unusedItems}</h3>
                 {Object.keys(result.unusedCounts).length > 0 ? (
                   <div className="usage-list">
