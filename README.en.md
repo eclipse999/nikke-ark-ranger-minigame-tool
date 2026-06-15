@@ -2,7 +2,7 @@
 
 <p align="center">
 
-  <img src="https://github.com/user-attachments/assets/8869bd77-8bed-4dae-8638-b5bd03e23a33" width="600" alt="Demo">
+  <img src="https://nikke-ark-ranger-minigame-tool.pages.dev/demo-en.gif" width="600" alt="Demo">
 
 </p>
 
