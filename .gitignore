@@ -8,3 +8,5 @@ dist
 .superpowers
 doc/
 .codex/
+AGENTS.md
+opencode.jsonc
