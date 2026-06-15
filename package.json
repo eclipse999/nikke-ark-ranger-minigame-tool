@@ -7,7 +7,8 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "vitest run"
+    "test": "vitest run",
+    "benchmark:solver": "vitest run --config vitest.benchmark.config.ts --reporter verbose"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.0",

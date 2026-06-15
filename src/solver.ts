@@ -181,18 +181,24 @@ function candidateSignature(candidate: CandidateSolution): string {
     .join('|');
 }
 
-function compareScores(a: CandidateScore, b: CandidateScore): number {
+export function compareObjectiveScores(a: CandidateScore, b: CandidateScore): number {
   return (
     b.mustUseFilledArea - a.mustUseFilledArea ||
     b.priorityScore - a.priorityScore ||
     b.filledCells - a.filledCells ||
-    a.unusedItemCount - b.unusedItemCount ||
+    a.unusedItemCount - b.unusedItemCount
+  );
+}
+
+export function compareCandidateScoresForDisplay(a: CandidateScore, b: CandidateScore): number {
+  return (
+    compareObjectiveScores(a, b) ||
     a.signature.localeCompare(b.signature)
   );
 }
 
 function isScoreBetterThan(a: CandidateScore, b: CandidateScore | null): boolean {
-  return b === null || compareScores(a, b) < 0;
+  return b === null || compareObjectiveScores(a, b) < 0;
 }
 
 function cloneCandidate(candidate: CandidateSolution): CandidateSolution {
@@ -238,7 +244,7 @@ function addCandidate(candidates: ScoredCandidate[], candidate: CandidateSolutio
     score,
   });
 
-  candidates.sort((a, b) => compareScores(a.score, b.score));
+  candidates.sort((a, b) => compareCandidateScoresForDisplay(a.score, b.score));
   candidates.splice(maxSolutions);
 }
 
@@ -323,16 +329,36 @@ function getMustUseCounts(
   return { used, unused };
 }
 
-function getFirstOpenCellIndex(usableMask: bigint, occupiedMask: bigint): number | null {
+function getBestPivotCellIndex(
+  usableMask: bigint,
+  occupiedMask: bigint,
+  remainingCounts: Record<string, number>,
+  placementCache: PlacementCache,
+): number | null {
   const openMask = usableMask & ~occupiedMask;
+  let bestIndex: number | null = null;
+  let bestPlacementCount = Number.POSITIVE_INFINITY;
 
   for (let index = 0; index < BOARD_SIZE * BOARD_SIZE; index += 1) {
-    if ((openMask & bitForIndex(index)) !== 0n) {
-      return index;
+    if ((openMask & bitForIndex(index)) === 0n) {
+      continue;
+    }
+
+    const placementCount = placementCache.placementsByCell[index].filter(
+      (placement) => (remainingCounts[placement.itemId] ?? 0) > 0 && (placement.mask & occupiedMask) === 0n,
+    ).length;
+
+    if (placementCount < bestPlacementCount) {
+      bestIndex = index;
+      bestPlacementCount = placementCount;
+
+      if (placementCount === 0) {
+        return index;
+      }
     }
   }
 
-  return null;
+  return bestIndex;
 }
 
 function getMustUseSet(mustUseItemIds: string[] | undefined): Set<string> {
@@ -417,7 +443,7 @@ export function solveInventory(
   function remember(filledCells: number, priorityScore: number, mustUseFilledArea: number) {
     const score = makeCurrentScore(filledCells, priorityScore, mustUseFilledArea);
 
-    if (bestScore !== null && compareScores(score, bestScore) > 0) {
+    if (bestScore !== null && compareObjectiveScores(score, bestScore) > 0) {
       return;
     }
 
@@ -464,7 +490,7 @@ export function solveInventory(
       signature: '',
     };
 
-    return compareScores(optimisticScore, bestScore) <= 0;
+    return compareObjectiveScores(optimisticScore, bestScore) <= 0;
   }
 
   function dfs(occupiedMask: bigint, filledCells: number, priorityScore: number, mustUseFilledArea: number): void {
@@ -485,7 +511,7 @@ export function solveInventory(
       return;
     }
 
-    const pivotCellIndex = getFirstOpenCellIndex(usableMask, occupiedMask);
+    const pivotCellIndex = getBestPivotCellIndex(usableMask, occupiedMask, remainingCounts, placementCache);
 
     if (pivotCellIndex === null) {
       return;

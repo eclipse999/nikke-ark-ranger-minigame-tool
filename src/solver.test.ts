@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDefaultBoard, createFullBoard } from './board';
-import { buildPlacementCache, solveInventory } from './solver';
+import { buildPlacementCache, compareCandidateScoresForDisplay, compareObjectiveScores, solveInventory } from './solver';
 import { getSelectedItemArea, summarizeSolverResult } from './solverDiagnostics';
 import type { Board } from './types';
 
@@ -396,6 +396,35 @@ describe('solver', () => {
     expect(result.usedCounts).toEqual({ P07: 1 });
   });
 
+  it('returns a legal solution when MRV must skip an uncovered constrained cell', () => {
+    const board = boardFromRows([
+      '.xxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxx..xxxx',
+      'xxx..xxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+    ]);
+    const result = solveInventory(board, { P07: 1 }, { maxSolutions: 3, timeLimitMs: 100 });
+    const usableCells = new Set(
+      board.flatMap((rowCells, row) =>
+        rowCells.flatMap((available, col) => (available ? [`${row},${col}`] : [])),
+      ),
+    );
+
+    expect(result.bestFilledCells).toBe(4);
+    expect(result.provenOptimal).toBe(true);
+    expect(result.stopReason).toBe('complete');
+    result.solutions[0].placements.forEach((placement) => {
+      placement.cells.forEach((cell) => {
+        expect(usableCells.has(`${cell.row},${cell.col}`)).toBe(true);
+      });
+    });
+  });
+
   it('uses rotations when an item cannot fit in its base orientation', () => {
     const board = boardFromRows([
       '..xxxxxxx',
@@ -457,6 +486,52 @@ describe('solver', () => {
 
     expect(result.solutions.length).toBeLessThanOrEqual(2);
     expect(result.solutions.every((solution) => solution.filledCells === result.bestFilledCells)).toBe(true);
+  });
+
+  it('keeps equivalent objective candidates with different signatures', () => {
+    const board = boardFromRows([
+      '..xxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+    ]);
+    const result = solveInventory(board, { P11: 1 }, { maxSolutions: 2, timeLimitMs: 100 });
+    const signatures = result.solutions.map((solution) =>
+      solution.placements
+        .flatMap((placement) =>
+          placement.cells.map((cell) => `${cell.row},${cell.col}:${placement.itemId}:${placement.rotation}`),
+        )
+        .sort()
+        .join('|'),
+    );
+
+    expect(result.bestFilledCells).toBe(1);
+    expect(result.provenOptimal).toBe(true);
+    expect(result.stopReason).toBe('complete');
+    expect(result.solutions).toHaveLength(2);
+    expect(new Set(signatures).size).toBe(2);
+  });
+
+  it('does not treat signature differences as objective score differences', () => {
+    const highSignature = {
+      mustUseFilledArea: 0,
+      priorityScore: 4,
+      filledCells: 4,
+      unusedItemCount: 1,
+      signature: 'z-placement',
+    };
+    const lowSignature = {
+      ...highSignature,
+      signature: 'a-placement',
+    };
+
+    expect(compareObjectiveScores(highSignature, lowSignature)).toBe(0);
+    expect(compareCandidateScoresForDisplay(highSignature, lowSignature)).toBeGreaterThan(0);
   });
 
   it('returns deterministic first solution for the same input', () => {
