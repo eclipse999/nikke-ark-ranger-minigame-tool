@@ -15,7 +15,6 @@ type BenchmarkMetrics = Pick<
   | 'bestFilledCells'
   | 'utilization'
   | 'selectedPlacementRatio'
-  | 'priorityScore'
   | 'mustUseSatisfied'
   | 'provenOptimal'
   | 'stopReason'
@@ -47,7 +46,6 @@ function toMetrics(result: SolverResult): BenchmarkMetrics {
     bestFilledCells: result.bestFilledCells,
     utilization: Number(result.utilization.toFixed(4)),
     selectedPlacementRatio: Number(result.selectedPlacementRatio.toFixed(4)),
-    priorityScore: result.priorityScore,
     mustUseSatisfied: result.mustUseSatisfied,
     provenOptimal: result.provenOptimal,
     stopReason: result.stopReason,
@@ -62,7 +60,6 @@ function summarizeMetrics(metrics: BenchmarkMetrics) {
     bestFilledCells: metrics.bestFilledCells,
     utilization: metrics.utilization,
     selectedPlacementRatio: metrics.selectedPlacementRatio,
-    priorityScore: metrics.priorityScore,
     mustUseSatisfied: metrics.mustUseSatisfied,
     provenOptimal: metrics.provenOptimal,
     stopReason: metrics.stopReason,
@@ -111,14 +108,10 @@ const cases: BenchmarkCase[] = [
     options: { maxSolutions: 4, timeLimitMs: 1000, mustUseItemIds: ['P12'] },
   },
   {
-    name: 'priority pressure',
+    name: 'over-capacity pressure',
     board: createDefaultBoard(),
     counts: { P07: 4, P11: 12, P12: 2, P14: 8 },
-    options: {
-      maxSolutions: 4,
-      timeLimitMs: 3000,
-      priorityByItemId: { P11: 4, P12: 5, P14: 1 },
-    },
+    options: { maxSolutions: 4, timeLimitMs: 3000 },
   },
 ];
 

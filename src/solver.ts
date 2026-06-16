@@ -10,7 +10,6 @@ type ItemSearchEntry = {
 
 type CandidateScore = {
   mustUseFilledArea: number;
-  priorityScore: number;
   filledCells: number;
   unusedItemCount: number;
   signature: string;
@@ -98,14 +97,6 @@ function normalizeCount(value: number | undefined): number {
   return Math.max(0, Math.floor(value ?? 0));
 }
 
-function normalizePriority(value: number | undefined): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return 1;
-  }
-
-  return Math.min(5, Math.max(1, Math.floor(value)));
-}
-
 function collectSearchEntries(counts: Record<string, number>): ItemSearchEntry[] {
   return items
     .map((item) => ({
@@ -184,7 +175,6 @@ function candidateSignature(candidate: CandidateSolution): string {
 export function compareObjectiveScores(a: CandidateScore, b: CandidateScore): number {
   return (
     b.mustUseFilledArea - a.mustUseFilledArea ||
-    b.priorityScore - a.priorityScore ||
     b.filledCells - a.filledCells ||
     a.unusedItemCount - b.unusedItemCount
   );
@@ -222,12 +212,10 @@ function makeCandidateScore(
   candidate: CandidateSolution,
   selectedCounts: Record<string, number>,
   usedCounts: Record<string, number>,
-  priorityScore: number,
   mustUseFilledArea: number,
 ): CandidateScore {
   return {
     mustUseFilledArea,
-    priorityScore,
     filledCells: candidate.filledCells,
     unusedItemCount: getUnusedItemCount(selectedCounts, usedCounts),
     signature: candidateSignature(candidate),
@@ -285,22 +273,8 @@ function getItemArea(itemId: string): number {
   return items.find((item) => item.id === itemId)?.rotations[0]?.area ?? 0;
 }
 
-function getItemPriority(itemId: string, priorityByItemId: Record<string, number> | undefined): number {
-  return normalizePriority(priorityByItemId?.[itemId]);
-}
-
 function getCountsArea(counts: Record<string, number>): number {
   return Object.entries(counts).reduce((total, [itemId, count]) => total + getItemArea(itemId) * count, 0);
-}
-
-function getPriorityScore(
-  usedCounts: Record<string, number>,
-  priorityByItemId: Record<string, number> | undefined,
-): number {
-  return Object.entries(usedCounts).reduce(
-    (total, [itemId, usedCount]) => total + getItemArea(itemId) * getItemPriority(itemId, priorityByItemId) * usedCount,
-    0,
-  );
 }
 
 function getMustUseCounts(
@@ -370,11 +344,9 @@ function getPlacementSortKey(
   remainingCounts: Record<string, number>,
   placementCache: PlacementCache,
   mustUseItems: Set<string>,
-  priorityByItemId: Record<string, number> | undefined,
 ) {
   return {
     mustUse: mustUseItems.has(placement.itemId) ? 1 : 0,
-    priority: getItemPriority(placement.itemId, priorityByItemId),
     area: placement.area,
     remainingCount: remainingCounts[placement.itemId] ?? 0,
     restriction: placementCache.placementsByItemId.get(placement.itemId)?.length ?? 0,
@@ -387,16 +359,17 @@ function comparePlacements(
   remainingCounts: Record<string, number>,
   placementCache: PlacementCache,
   mustUseItems: Set<string>,
-  priorityByItemId: Record<string, number> | undefined,
+  preferInventoryPressure: boolean,
 ): number {
-  const aKey = getPlacementSortKey(a, remainingCounts, placementCache, mustUseItems, priorityByItemId);
-  const bKey = getPlacementSortKey(b, remainingCounts, placementCache, mustUseItems, priorityByItemId);
+  const aKey = getPlacementSortKey(a, remainingCounts, placementCache, mustUseItems);
+  const bKey = getPlacementSortKey(b, remainingCounts, placementCache, mustUseItems);
+
+  const inventoryPressureComparison = bKey.remainingCount - aKey.remainingCount || bKey.area - aKey.area;
+  const areaComparison = bKey.area - aKey.area || aKey.remainingCount - bKey.remainingCount;
 
   return (
     bKey.mustUse - aKey.mustUse ||
-    bKey.priority - aKey.priority ||
-    bKey.area - aKey.area ||
-    aKey.remainingCount - bKey.remainingCount ||
+    (preferInventoryPressure ? inventoryPressureComparison : areaComparison) ||
     aKey.restriction - bKey.restriction ||
     a.itemId.localeCompare(b.itemId) ||
     a.rotation - b.rotation ||
@@ -424,24 +397,26 @@ export function solveInventory(
   const usedCounts: Record<string, number> = {};
   const mustUseItems = getMustUseSet(options.mustUseItemIds);
   const targetFilledCells = Math.min(selectedItemArea, usableCells);
+  const hasExactFillTarget = settings.timeLimitMs > 0 && targetFilledCells === usableCells && selectedItemArea > 0;
 
   let bestScore: CandidateScore | null = null;
   let searchedNodes = 0;
   let timedOut = false;
+  let passTimedOut = false;
   let shouldStop = false;
+  let activeTimeLimitMs = settings.timeLimitMs;
 
-  function makeCurrentScore(filledCells: number, priorityScore: number, mustUseFilledArea: number): CandidateScore {
+  function makeCurrentScore(filledCells: number, mustUseFilledArea: number): CandidateScore {
     return makeCandidateScore(
       { filledCells, placements },
       selectedCounts,
       usedCounts,
-      priorityScore,
       mustUseFilledArea,
     );
   }
 
-  function remember(filledCells: number, priorityScore: number, mustUseFilledArea: number) {
-    const score = makeCurrentScore(filledCells, priorityScore, mustUseFilledArea);
+  function remember(filledCells: number, mustUseFilledArea: number) {
+    const score = makeCurrentScore(filledCells, mustUseFilledArea);
 
     if (bestScore !== null && compareObjectiveScores(score, bestScore) > 0) {
       return;
@@ -462,7 +437,6 @@ export function solveInventory(
   function canImproveBest(
     occupiedMask: bigint,
     filledCells: number,
-    priorityScore: number,
     mustUseFilledArea: number,
   ): boolean {
     if (bestScore === null) {
@@ -478,13 +452,6 @@ export function solveInventory(
           (total, [itemId, count]) => total + (mustUseItems.has(itemId) ? getItemArea(itemId) * count : 0),
           0,
         ),
-      priorityScore:
-        priorityScore +
-        Object.entries(remainingCounts).reduce(
-          (total, [itemId, count]) =>
-            total + getItemArea(itemId) * getItemPriority(itemId, options.priorityByItemId) * count,
-          0,
-        ),
       filledCells: filledCells + Math.min(freeCells, remainingArea),
       unusedItemCount: 0,
       signature: '',
@@ -493,21 +460,31 @@ export function solveInventory(
     return compareObjectiveScores(optimisticScore, bestScore) <= 0;
   }
 
-  function dfs(occupiedMask: bigint, filledCells: number, priorityScore: number, mustUseFilledArea: number): void {
+  function dfs(
+    occupiedMask: bigint,
+    filledCells: number,
+    mustUseFilledArea: number,
+    allowSkip: boolean,
+    preferInventoryPressure: boolean,
+  ): void {
     searchedNodes += 1;
 
-    if ((searchedNodes & 255) === 0 && performance.now() - start > settings.timeLimitMs) {
-      timedOut = true;
+    remember(filledCells, mustUseFilledArea);
+
+    if (activeTimeLimitMs <= 0 || ((searchedNodes & 255) === 0 && performance.now() - start > activeTimeLimitMs)) {
+      if (activeTimeLimitMs < settings.timeLimitMs) {
+        passTimedOut = true;
+      } else {
+        timedOut = true;
+      }
       return;
     }
 
-    remember(filledCells, priorityScore, mustUseFilledArea);
-
-    if (shouldStop || timedOut) {
+    if (shouldStop || timedOut || passTimedOut) {
       return;
     }
 
-    if (!canImproveBest(occupiedMask, filledCells, priorityScore, mustUseFilledArea)) {
+    if (!canImproveBest(occupiedMask, filledCells, mustUseFilledArea)) {
       return;
     }
 
@@ -519,10 +496,18 @@ export function solveInventory(
 
     const pivotPlacements = placementCache.placementsByCell[pivotCellIndex]
       .filter((placement) => (remainingCounts[placement.itemId] ?? 0) > 0 && (placement.mask & occupiedMask) === 0n)
-      .sort((a, b) => comparePlacements(a, b, remainingCounts, placementCache, mustUseItems, options.priorityByItemId));
+      .sort((a, b) =>
+        comparePlacements(
+          a,
+          b,
+          remainingCounts,
+          placementCache,
+          mustUseItems,
+          preferInventoryPressure,
+        ),
+      );
 
     for (const cachedPlacement of pivotPlacements) {
-      const itemPriority = getItemPriority(cachedPlacement.itemId, options.priorityByItemId);
       const mustUseArea = mustUseItems.has(cachedPlacement.itemId) ? cachedPlacement.area : 0;
 
       remainingCounts[cachedPlacement.itemId] -= 1;
@@ -532,8 +517,9 @@ export function solveInventory(
       dfs(
         occupiedMask | cachedPlacement.mask,
         filledCells + cachedPlacement.area,
-        priorityScore + cachedPlacement.area * itemPriority,
         mustUseFilledArea + mustUseArea,
+        allowSkip,
+        preferInventoryPressure,
       );
 
       placements.pop();
@@ -543,15 +529,32 @@ export function solveInventory(
       }
       remainingCounts[cachedPlacement.itemId] += 1;
 
-      if (timedOut || shouldStop) {
+      if (timedOut || passTimedOut || shouldStop) {
         return;
       }
     }
 
-    dfs(occupiedMask | bitForIndex(pivotCellIndex), filledCells, priorityScore, mustUseFilledArea);
+    if (allowSkip) {
+      dfs(
+        occupiedMask | bitForIndex(pivotCellIndex),
+        filledCells,
+        mustUseFilledArea,
+        allowSkip,
+        preferInventoryPressure,
+      );
+    }
   }
 
-  dfs(0n, 0, 0, 0);
+  if (hasExactFillTarget) {
+    activeTimeLimitMs = Math.min(settings.timeLimitMs, 250);
+    dfs(0n, 0, 0, false, true);
+  }
+
+  if (!shouldStop && !timedOut) {
+    passTimedOut = false;
+    activeTimeLimitMs = settings.timeLimitMs;
+    dfs(0n, 0, 0, true, false);
+  }
 
   const bestSolution = candidates[0]?.solution;
   const finalUsedCounts = getUsedCounts(bestSolution);
@@ -569,7 +572,6 @@ export function solveInventory(
     selectedPlacementRatio: selectedItemArea === 0 ? 0 : placedItemArea / selectedItemArea,
     usedCounts: finalUsedCounts,
     unusedCounts,
-    priorityScore: candidates[0]?.score.priorityScore ?? getPriorityScore(finalUsedCounts, options.priorityByItemId),
     mustUseSatisfied: Object.keys(mustUseCounts.unused).length === 0,
     mustUseUsedCounts: mustUseCounts.used,
     mustUseUnusedCounts: mustUseCounts.unused,

@@ -12,13 +12,10 @@ type Messages = {
   resetBoard: string;
   fullBoard: string;
   clearItems: string;
-  resetPriorities: string;
+  clearMustUse: string;
   solve: string;
-  priorityHint: string;
-  priorityTooltip: string;
   language: string;
   quantity: string;
-  priority: string;
   mustUse: string;
   rotations: string;
   usedItems: string;
@@ -65,13 +62,10 @@ export const messages: Record<Locale, Messages> = {
     resetBoard: '重置',
     fullBoard: '全部可用',
     clearItems: '清空道具',
-    resetPriorities: '重置優先權',
+    clearMustUse: '清除必用',
     solve: '執行最佳化',
-    priorityHint: '?',
-    priorityTooltip: '優先權數字越大越優先；空間不足時會偏好放置優先權較高的道具。',
     language: '語言',
     quantity: '數量',
-    priority: '優先權',
     mustUse: '必用',
     rotations: '旋轉',
     usedItems: '使用數量',
@@ -116,13 +110,10 @@ export const messages: Record<Locale, Messages> = {
     resetBoard: 'Reset',
     fullBoard: 'All Available',
     clearItems: 'Clear Items',
-    resetPriorities: 'Reset Priority',
+    clearMustUse: 'Clear Must-use',
     solve: 'Optimize',
-    priorityHint: '?',
-    priorityTooltip: 'Higher priority numbers are placed first when space is limited.',
     language: 'Language',
     quantity: 'Qty',
-    priority: 'Priority',
     mustUse: 'Must-use',
     rotations: 'Rotations',
     usedItems: 'Items Used',

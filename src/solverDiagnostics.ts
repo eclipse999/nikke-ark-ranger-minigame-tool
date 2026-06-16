@@ -9,7 +9,6 @@ export type SolverDiagnostics = {
   selectedPlacementRatio: number;
   usedCounts: Record<string, number>;
   unusedCounts: Record<string, number>;
-  priorityScore: number;
   mustUseSatisfied: boolean;
   mustUseUsedCounts: Record<string, number>;
   mustUseUnusedCounts: Record<string, number>;
@@ -67,7 +66,6 @@ export function summarizeSolverResult(
     selectedPlacementRatio: result.selectedPlacementRatio,
     usedCounts,
     unusedCounts: Object.keys(result.unusedCounts).length > 0 ? result.unusedCounts : getUnusedCounts(counts, usedCounts),
-    priorityScore: result.priorityScore,
     mustUseSatisfied: result.mustUseSatisfied,
     mustUseUsedCounts: result.mustUseUsedCounts,
     mustUseUnusedCounts: result.mustUseUnusedCounts,

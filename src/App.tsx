@@ -238,9 +238,7 @@ function App() {
   const [board, setBoard] = useState<Board>(() => createDefaultBoard('character-1'));
   const [counts, setCounts] = useState<Record<string, number>>(() => Object.fromEntries(items.map((item) => [item.id, 0])));
   const [countInputs, setCountInputs] = useState<Record<string, string>>(() => Object.fromEntries(items.map((item) => [item.id, '0'])));
-  const [priorityByItemId, setPriorityByItemId] = useState<Record<string, number>>(() => Object.fromEntries(items.map((item) => [item.id, 1])));
   const [mustUseItemIds, setMustUseItemIds] = useState<string[]>([]);
-  const [activePriorityHintItemId, setActivePriorityHintItemId] = useState<string | null>(null);
   const [result, setResult] = useState<SolverResult | null>(null);
   const t = messages[locale];
   const usableCells = useMemo(() => countUsableCells(board), [board]);
@@ -274,12 +272,6 @@ function App() {
     if (nextValue === 0) {
       setMustUseItemIds((current) => current.filter((currentItemId) => currentItemId !== itemId));
     }
-    setResult(null);
-  }
-
-  function updatePriority(itemId: string, value: string) {
-    const nextValue = Math.min(5, Math.max(1, Math.floor(Number(value) || 1)));
-    setPriorityByItemId((current) => ({ ...current, [itemId]: nextValue }));
     setResult(null);
   }
 
@@ -318,7 +310,7 @@ function App() {
   }
 
   function runSolver() {
-    const nextResult = solveInventory(board, counts, { maxSolutions: 1, timeLimitMs: 1000, priorityByItemId, mustUseItemIds });
+    const nextResult = solveInventory(board, counts, { maxSolutions: 1, timeLimitMs: 1000, mustUseItemIds });
     setResult(nextResult);
   }
 
@@ -347,8 +339,7 @@ function App() {
     setResult(null);
   }
 
-  function resetPriorities() {
-    setPriorityByItemId(Object.fromEntries(items.map((item) => [item.id, 1])));
+  function clearMustUse() {
     setMustUseItemIds([]);
     setResult(null);
   }
@@ -421,8 +412,8 @@ function App() {
               <button className="secondary-button compact-button" type="button" onClick={clearItems}>
                 {t.clearItems}
               </button>
-              <button className="secondary-button compact-button" type="button" onClick={resetPriorities}>
-                {t.resetPriorities}
+              <button className="secondary-button compact-button" type="button" onClick={clearMustUse} disabled={!hasMustUseItems}>
+                {t.clearMustUse}
               </button>
             </div>
             <button className="primary-button compact-button" type="button" onClick={runSolver}>
@@ -446,34 +437,6 @@ function App() {
                       value={countInputs[item.id] ?? String(counts[item.id] ?? 0)}
                       onChange={(event) => updateCount(item.id, event.target.value)}
                     />
-                  </label>
-                </div>
-                <div className="item-controls">
-                  <label className="priority-control">
-                    <span>
-                      {t.priority}
-                      <button
-                        className={`hint-button ${activePriorityHintItemId === item.id ? 'is-open' : ''}`}
-                        type="button"
-                        aria-label={t.priorityTooltip}
-                        aria-expanded={activePriorityHintItemId === item.id}
-                        data-tooltip={t.priorityTooltip}
-                        onClick={() => setActivePriorityHintItemId(item.id)}
-                        onMouseEnter={() => setActivePriorityHintItemId(item.id)}
-                        onMouseLeave={() => setActivePriorityHintItemId(null)}
-                        onFocus={() => setActivePriorityHintItemId(item.id)}
-                        onBlur={() => setActivePriorityHintItemId(null)}
-                      >
-                        {t.priorityHint}
-                      </button>
-                    </span>
-                    <select value={priorityByItemId[item.id] ?? 1} onChange={(event) => updatePriority(item.id, event.target.value)}>
-                      {[1, 2, 3, 4, 5].map((priority) => (
-                        <option key={priority} value={priority}>
-                          {priority}
-                        </option>
-                      ))}
-                    </select>
                   </label>
                   <label className="must-use-control">
                     <input

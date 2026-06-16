@@ -51,25 +51,13 @@ describe('solver', () => {
     expect(solutionSignature(withoutOptions)).toBe(solutionSignature(withEmptyOptions));
   });
 
-  it('defaults priority to 1 and must-use to empty', () => {
+  it('defaults must-use to empty', () => {
     const counts = { P07: 1, P11: 2 };
     const result = solveInventory(createFullBoard(), counts, { maxSolutions: 3, timeLimitMs: 100 });
 
-    expect(result.priorityScore).toBe(result.placedItemArea);
     expect(result.mustUseSatisfied).toBe(true);
     expect(result.mustUseUsedCounts).toEqual({});
     expect(result.mustUseUnusedCounts).toEqual({});
-  });
-
-  it('normalizes priority values before calculating priorityScore', () => {
-    const counts = { P07: 1, P08: 1, P11: 1 };
-    const result = solveInventory(createFullBoard(), counts, {
-      maxSolutions: 3,
-      timeLimitMs: 100,
-      priorityByItemId: { P07: 0, P08: 7.8, P11: Number.NaN },
-    });
-
-    expect(result.priorityScore).toBe(20);
   });
 
   it('does not return duplicate visual solutions for identical item copies', () => {
@@ -140,7 +128,7 @@ describe('solver', () => {
     expect(result.targetFilledCells).toBe(result.usableCells);
   });
 
-  it('maximizes filled cells when selected item area exceeds usable cells and priorities are equal', () => {
+  it('maximizes filled cells when selected item area exceeds usable cells', () => {
     const board = boardFromRows([
       '..xxxxxxx',
       'xxxxxxxxx',
@@ -157,28 +145,6 @@ describe('solver', () => {
     expect(result.selectedItemArea).toBeGreaterThan(result.usableCells);
     expect(result.bestFilledCells).toBe(2);
     expect(result.usedCounts).toEqual({ P11: 2 });
-  });
-
-  it('prefers a high-priority item over a mutually exclusive low-priority item', () => {
-    const board = boardFromRows([
-      '.xxxxxxxx',
-      '.xxxxxxxx',
-      'xxxxxxxxx',
-      'xxxxxxxxx',
-      'xxxxxxxxx',
-      'xxxxxxxxx',
-      'xxxxxxxxx',
-      'xxxxxxxxx',
-      'xxxxxxxxx',
-    ]);
-    const result = solveInventory(board, { P10: 1, P11: 1 }, {
-      maxSolutions: 3,
-      timeLimitMs: 100,
-      priorityByItemId: { P10: 1, P11: 5 },
-    });
-
-    expect(result.usedCounts).toEqual({ P11: 1 });
-    expect(result.priorityScore).toBe(5);
   });
 
   it('prefers a must-use item over a mutually exclusive normal item', () => {
@@ -520,7 +486,6 @@ describe('solver', () => {
   it('does not treat signature differences as objective score differences', () => {
     const highSignature = {
       mustUseFilledArea: 0,
-      priorityScore: 4,
       filledCells: 4,
       unusedItemCount: 1,
       signature: 'z-placement',
@@ -566,7 +531,6 @@ describe('solver', () => {
       filledCells: result.bestFilledCells,
       placedItemArea: result.placedItemArea,
       targetFilledCells: result.targetFilledCells,
-      priorityScore: result.priorityScore,
       mustUseSatisfied: result.mustUseSatisfied,
       searchedNodes: result.searchedNodes,
       stopReason: result.stopReason,
@@ -623,7 +587,7 @@ describe('solver', () => {
     });
   });
 
-  it('considers mid-priority cross items in a time-limited dense inventory', () => {
+  it('considers cross items in a time-limited dense inventory', () => {
     const board: Board = [
       [false, false, true, true, true, true, true, true, true],
       [false, false, true, true, true, true, true, true, true],
@@ -654,21 +618,34 @@ describe('solver', () => {
     expect(result.solutions.some((solution) => solution.placements.some((placement) => placement.itemId === 'P12'))).toBe(true);
   });
 
-  describe('priority and must-use behavior', () => {
-    it('prioritizes higher-priority items when selected item area exceeds usable cells', () => {
-      const board = createDefaultBoard();
-      const counts = { P14: 6, P12: 3, P11: 8 };
-      const options = {
-        maxSolutions: 3,
-        timeLimitMs: 500,
-        priorityByItemId: { P12: 5, P11: 3, P14: 1 },
-      };
+  it('finds the full packing from the user-reported dense inventory', () => {
+    const counts = { P02: 2, P05: 2, P06: 8, P07: 7, P09: 1 };
+    const result = solveInventory(createFullBoard(), counts, { maxSolutions: 1, timeLimitMs: 1000 });
 
-      const result = solveInventory(board, counts, options);
+    expect(result.selectedItemArea).toBe(81);
+    expect(result.bestFilledCells).toBe(81);
+    expect(result.unusedCounts).toEqual({});
+  });
 
-      expect(result.solutions[0].placements.some((placement) => placement.itemId === 'P12')).toBe(true);
+  it('fills the board for the user-reported over-capacity dense inventory', () => {
+    const counts = { P02: 2, P05: 2, P06: 8, P07: 8, P09: 1 };
+    const defaultResult = solveInventory(createFullBoard(), counts, { maxSolutions: 1, timeLimitMs: 1000 });
+    const mustUseResult = solveInventory(createFullBoard(), counts, {
+      maxSolutions: 1,
+      timeLimitMs: 1000,
+      mustUseItemIds: ['P07'],
     });
 
+    expect(defaultResult.selectedItemArea).toBe(85);
+    expect(defaultResult.targetFilledCells).toBe(81);
+    expect(defaultResult.bestFilledCells).toBe(81);
+    expect(defaultResult.unusedCounts).toEqual({ P07: 1 });
+    expect(mustUseResult.bestFilledCells).toBe(81);
+    expect(mustUseResult.mustUseSatisfied).toBe(true);
+    expect(mustUseResult.unusedCounts).toEqual({ P06: 1 });
+  });
+
+  describe('must-use behavior', () => {
     it('keeps must-use items in the best solution when they can be placed', () => {
       const board = createFullBoard();
       const counts = { P14: 12, P12: 1 };
