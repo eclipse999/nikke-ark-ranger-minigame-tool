@@ -627,6 +627,16 @@ describe('solver', () => {
     expect(result.unusedCounts).toEqual({});
   });
 
+  it('fills all selected items when total area is close to but less than board capacity', () => {
+    const counts = { P02: 2, P05: 2, P06: 8, P07: 6, P09: 1 };
+    const result = solveInventory(createFullBoard(), counts, { maxSolutions: 1, timeLimitMs: 1000 });
+
+    expect(result.selectedItemArea).toBe(77);
+    expect(result.bestFilledCells).toBe(77);
+    expect(result.selectedPlacementRatio).toBe(1);
+    expect(result.unusedCounts).toEqual({});
+  });
+
   it('fills the board for the user-reported over-capacity dense inventory', () => {
     const counts = { P02: 2, P05: 2, P06: 8, P07: 8, P09: 1 };
     const defaultResult = solveInventory(createFullBoard(), counts, { maxSolutions: 1, timeLimitMs: 1000 });
@@ -660,5 +670,19 @@ describe('solver', () => {
       expect(result.solutions[0].placements.some((placement) => placement.itemId === 'P12')).toBe(true);
       expect(result.mustUseSatisfied).toBe(true);
     });
+
+    it('does not degrade placement ratio when items are must-use vs optional', () => {
+      const counts = { P02: 2, P05: 2, P06: 11, P07: 4, P09: 1 };
+      const result = solveInventory(createFullBoard(), counts, { timeLimitMs: 5000 });
+      const mustUseResult = solveInventory(createFullBoard(), counts, {
+        timeLimitMs: 5000,
+        mustUseItemIds: ['P07'],
+      });
+
+      expect(mustUseResult.mustUseSatisfied).toBe(true);
+      expect(mustUseResult.selectedPlacementRatio).toBeGreaterThanOrEqual(
+        result.selectedPlacementRatio,
+      );
+    }, 15000);
   });
 });

@@ -367,9 +367,13 @@ function comparePlacements(
   const inventoryPressureComparison = bKey.remainingCount - aKey.remainingCount || bKey.area - aKey.area;
   const areaComparison = bKey.area - aKey.area || aKey.remainingCount - bKey.remainingCount;
 
+  const primaryComparison = preferInventoryPressure
+    ? inventoryPressureComparison
+    : areaComparison;
+
   return (
+    primaryComparison ||
     bKey.mustUse - aKey.mustUse ||
-    (preferInventoryPressure ? inventoryPressureComparison : areaComparison) ||
     aKey.restriction - bKey.restriction ||
     a.itemId.localeCompare(b.itemId) ||
     a.rotation - b.rotation ||
@@ -396,8 +400,11 @@ export function solveInventory(
   const placements: Placement[] = [];
   const usedCounts: Record<string, number> = {};
   const mustUseItems = getMustUseSet(options.mustUseItemIds);
+  const totalMustUseArea = Object.entries(selectedCounts)
+    .filter(([itemId]) => mustUseItems.has(itemId))
+    .reduce((sum, [itemId, count]) => sum + getItemArea(itemId) * count, 0);
   const targetFilledCells = Math.min(selectedItemArea, usableCells);
-  const hasExactFillTarget = settings.timeLimitMs > 0 && targetFilledCells === usableCells && selectedItemArea > 0;
+  const tryNoSkipPass = settings.timeLimitMs > 0 && selectedItemArea > 0;
 
   let bestScore: CandidateScore | null = null;
   let searchedNodes = 0;
@@ -429,7 +436,11 @@ export function solveInventory(
 
     addCandidate(candidates, { filledCells, placements }, score, settings.maxSolutions);
 
-    if (candidates.length >= settings.maxSolutions && candidates[0]?.score.filledCells === targetFilledCells) {
+    if (
+      candidates.length >= settings.maxSolutions &&
+      candidates[0]?.score.filledCells === targetFilledCells &&
+      candidates[0]?.score.mustUseFilledArea >= totalMustUseArea
+    ) {
       shouldStop = true;
     }
   }
@@ -545,7 +556,7 @@ export function solveInventory(
     }
   }
 
-  if (hasExactFillTarget) {
+  if (tryNoSkipPass) {
     activeTimeLimitMs = Math.min(settings.timeLimitMs, 250);
     dfs(0n, 0, 0, false, true);
   }
