@@ -73,6 +73,7 @@ npm run dev
 | `npm run build` | 型別檢查 + 生產建置 |
 | `npm run preview` | 預覽生產建置 |
 | `npm test` | 執行單元測試（Vitest） |
+| `npm run benchmark:solver` | 執行求解器回歸基準測試（檢查 deterministic 與效能） |
 
 ## 技術棧
 
@@ -85,24 +86,32 @@ npm run dev
 
 ```
 src/
-├── types.ts        # 共用型別定義（Board, Shape, ItemDefinition, SolverResult）
-├── backpackPresets.ts # 角色初始背包格局與開放狀態
-├── board.ts        # 棋盤建立、複製、可用格計數
-├── items.ts        # P01–P14 道具定義與旋轉形狀產生
-├── solver.ts       # placement cache + pivot cell DFS 求解器（含時間限制與剪枝）
-├── i18n.ts         # 繁體中文 / English 文案
-├── App.tsx         # 主元件：三欄式 UI、求解狀態管理
-├── main.tsx        # React 進入點
-└── styles.css      # 全域樣式
+├── types.ts                # 共用型別定義（Board, Shape, ItemDefinition, SolverResult）
+├── backpackPresets.ts       # 角色初始背包格局與開放狀態
+├── board.ts                # 棋盤建立、複製、可用格計數
+├── items.ts                # P01–P14 道具定義與旋轉形狀產生
+├── solver.ts               # placement cache + pivot cell DFS 求解器（含時間限制與剪枝）
+├── solverDiagnostics.ts    # 求解結果診斷欄位計算
+├── solverTestUtils.ts      # 求解器不變量檢查 helper
+├── solver.test.ts          # 固定回歸單元測試
+├── solver.fuzz.test.ts     # 隨機 fuzz 測試（不變量與 deterministic）
+├── solver.oracle.test.ts   # 小範圍 exact oracle 最佳性比對
+├── solver.benchmark.ts     # 求解器基準測試（效能與 deterministic）
+├── i18n.ts                 # 繁體中文 / English 文案
+├── App.tsx                 # 主元件：三欄式 UI、求解狀態管理
+├── main.tsx                # React 進入點
+└── styles.css              # 全域樣式
 ```
 
 ### 求解策略與限制
 
+- **最佳化語意**：未勾必用時優先尋找填入格數最多的方案；勾選必用後，先滿足必用道具再追求填入格數
 - 搜尋前會針對目前棋盤預先建立合法 placement cache，排除不可用格與越界位置
 - 使用 pivot cell DFS：每次選一個尚未處理的可用格，嘗試覆蓋該格的合法 placement，也保留 skip 該格的分支
 - 最佳方案排序依序考慮：必用道具完成度、填入格數、未放入數量與穩定 signature；因此 UI 只顯示排序後的最佳方案
 - 當所選道具總格數小於等於可用格時，目標填入格為所選總格數；超過可用格時，目標填入格為可用格
 - 求解器保留時間上限（UI 預設 1 秒）。極端案例可能回傳時間內最佳解；只有 `provenOptimal` 為 `true` 時，才代表搜尋已完整完成並證明目前排序目標下的最佳解
+- 測試覆蓋四層驗證：固定回歸案例（`solver.test.ts`）、不變量 fuzz（`solver.fuzz.test.ts`）、小範圍 exact oracle 比對（`solver.oracle.test.ts`）、benchmark 壓力案例（`solver.benchmark.ts`）
 
 ## 授權
 

@@ -113,6 +113,24 @@ const cases: BenchmarkCase[] = [
     counts: { P07: 4, P11: 12, P12: 2, P14: 8 },
     options: { maxSolutions: 4, timeLimitMs: 3000 },
   },
+  {
+    name: 'dense inventory exact fill',
+    board: createFullBoard(),
+    counts: { P02: 2, P05: 2, P06: 8, P07: 7, P09: 1 },
+    options: { maxSolutions: 1, timeLimitMs: 1000 },
+  },
+  {
+    name: 'dense inventory over-capacity',
+    board: createFullBoard(),
+    counts: { P02: 2, P05: 2, P06: 8, P07: 8, P09: 1 },
+    options: { maxSolutions: 1, timeLimitMs: 1000 },
+  },
+  {
+    name: 'dense inventory over-capacity with must-use',
+    board: createFullBoard(),
+    counts: { P02: 2, P05: 2, P06: 8, P07: 8, P09: 1 },
+    options: { maxSolutions: 1, timeLimitMs: 1000, mustUseItemIds: ['P07'] },
+  },
 ];
 
 describe('solver benchmark', () => {
