@@ -406,16 +406,16 @@ button:disabled {
 
 .item-top {
   display: grid;
-  grid-template-columns: minmax(112px, 1fr) auto auto;
+  grid-template-columns: minmax(80px, 1fr) minmax(86px, auto) minmax(64px, auto);
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .item-main {
   display: grid;
-  grid-template-columns: 34px auto;
+  grid-template-columns: 32px auto;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -430,7 +430,7 @@ button:disabled {
 }
 
 .quantity-control {
-  grid-template-columns: auto 66px;
+  grid-template-columns: auto 58px;
   align-items: center;
   gap: 6px;
   color: #9fb0c6;
@@ -439,7 +439,7 @@ button:disabled {
 }
 
 .item-row input {
-  width: 66px;
+  width: 58px;
   min-height: 32px;
   border: 1px solid #2b3c55;
   border-radius: 8px;
@@ -462,13 +462,19 @@ button:disabled {
   grid-template-columns: auto 1fr;
   align-items: center;
   min-height: 32px;
-  padding: 0 8px;
+  padding: 0 6px;
   border: 1px solid #2b3c55;
   border-radius: 8px;
   background: #0b1424;
 }
 
-.must-use-control input {
+.must-use-control span {
+  min-width: 0;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.item-row .must-use-control input {
   width: 16px;
   min-height: 16px;
   accent-color: #6ea8ff;
@@ -885,6 +891,10 @@ button:disabled {
 
   .item-row input {
     width: 72px;
+  }
+
+  .item-row .must-use-control input {
+    width: 16px;
   }
 
   .quantity-control {
