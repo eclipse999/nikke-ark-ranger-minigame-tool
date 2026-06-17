@@ -10,7 +10,7 @@
 
 A backpack optimization tool: a 9×9 inventory space planner for the Ark Ranger minigame in *Goddess of Victory: NIKKE*.
 
-Enter the board's available cells, item quantities, and optional must-use settings. The solver computes a strong placement within the time limit.
+Enter the board's available cells, item quantities, and optional must-use settings. The solver computes a strong placement in a background thread within the time limit.
 
 > This tool is inspired by and recreated from [nikke-mini-game.netlify.app](https://nikke-mini-game.netlify.app/), retaining its three-column UI while adding **item rotation** support.
 
@@ -29,6 +29,8 @@ Deployed on Cloudflare Pages:
 - **Must-use Items** — Mark selected items as must-use; when placements conflict, the solver prioritizes satisfying must-use items and reports whether they were all placed
 - **Unplaced Item Summary** — Shows which items were placed and which could not fit, so trade-offs are easy to review
 - **Backtracking Solver** — Uses a placement cache and pivot-cell DFS, with conservative pruning and a configurable time limit (default 1 second)
+- **Low-movement Preference** — Keeps the previous successful result as a baseline; among equally optimal results, it prefers preserving more items with the exact same position and rotation
+- **Background Solving** — Runs optimization in a Web Worker so longer searches do not block the main UI
 - **Best Placement View** — Shows the best placement for the current scoring order in the results panel
 - **Result Status Hints** — Item placement rate shows a compact Complete, Good, Notice, or Needs adjustment state
 - **Bilingual UI** — Traditional Chinese / English, with `?lang=en` URL parameter for default language; switches instantly
@@ -63,7 +65,7 @@ Open your browser at `http://localhost:5173`.
 2. **Set up the board** — Click or drag cells to mark them as available; or use "All Available" / "Reset" buttons. Reset returns to the currently selected preset
 3. **Enter quantities** — Fill in how many of each item you have in the center panel
 4. **Set must-use items** — Check "Must-use" to ask the solver to prefer keeping that item; without must-use selections, it prioritizes the highest filled-cell result
-5. **Run the solver** — Click "Optimize"; the solver finds the best placement it can within the time limit
+5. **Run the solver** — Click "Optimize"; the solver finds the best placement it can within the time limit. When a previous successful result exists, it prefers lower-movement layouts without sacrificing the primary optimization goals
 6. **Review results** — The right panel shows usable cells, filled cells, item placement status, inventory utilization, placed items, and unplaced items. Must-use status appears only when at least one item is marked must-use
 7. **Switch language** — Use the top-right language dropdown
 
@@ -75,6 +77,7 @@ Open your browser at `http://localhost:5173`.
 | `npm run build`   | Type-check + production build         |
 | `npm run preview` | Preview production build              |
 | `npm test`        | Run unit tests (Vitest)               |
+| `npm run benchmark:solver` | Run solver regression benchmarks for determinism and performance |
 
 ## Tech Stack
 
@@ -92,8 +95,15 @@ src/
 ├── board.ts           # Board creation, cloning, usable cell counting
 ├── items.ts           # P01–P14 item definitions and rotation shape generation
 ├── solver.ts          # Placement-cache + pivot-cell DFS solver (with time limit and pruning)
+├── solverWorker.ts    # Web Worker entry point for background solving
+├── solverDiagnostics.ts    # Solver result diagnostics
+├── solverTestUtils.ts      # Solver invariant test helpers
+├── solver.test.ts          # Fixed regression unit tests
+├── solver.fuzz.test.ts     # Randomized fuzz tests for invariants and determinism
+├── solver.oracle.test.ts   # Small exact-oracle optimality tests
+├── solver.benchmark.ts     # Solver benchmark and determinism checks
 ├── i18n.ts            # Traditional Chinese / English strings
-├── App.tsx            # Main component: three-column UI, solver state management
+├── App.tsx            # Main component: three-column UI, solver state and Worker management
 ├── main.tsx           # React entry point
 └── styles.css         # Global styles
 ```
@@ -102,9 +112,11 @@ src/
 
 - Before search, the solver builds a legal placement cache for the current board, excluding out-of-bounds placements and placements that cover unavailable cells
 - It uses pivot-cell DFS: each step selects an unprocessed usable cell, tries legal placements covering that cell, and also keeps a skip branch for leaving that cell empty
-- The best placement is ordered by must-use completion, filled cells, unplaced item count, and a stable signature; the UI shows only the top result
+- The best placement is ordered by must-use completion, filled cells, unplaced item count, exact placements retained from the previous result, and a stable signature; the UI shows only the top result
+- The low-movement preference only applies when the primary goals are tied. It cannot beat must-use completion, filled cells, or unplaced item count
 - When selected item area is less than or equal to usable cells, the target filled cells equal the selected item area; when selected item area exceeds usable cells, the target filled cells equal usable cells
-- The solver still has a time limit (UI default: 1 second). Extreme cases may return the best solution found within the time limit. Only when `provenOptimal` is `true` has the search completed and proven the best result for the current scoring order
+- The solver still has a time limit: the UI uses 1 second for the first solve or when there is no previous result, and 3 seconds when a previous successful result can be used as a low-movement baseline
+- The UI runs solving through a Web Worker, so longer searches do not block the main thread. Extreme cases may still return the best solution found within the time limit. Only when `provenOptimal` is `true` has the search completed and proven the best result for the current scoring order
 
 ## License
 
