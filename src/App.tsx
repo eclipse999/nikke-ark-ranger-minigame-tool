@@ -240,6 +240,7 @@ function App() {
   const [countInputs, setCountInputs] = useState<Record<string, string>>(() => Object.fromEntries(items.map((item) => [item.id, '0'])));
   const [mustUseItemIds, setMustUseItemIds] = useState<string[]>([]);
   const [result, setResult] = useState<SolverResult | null>(null);
+  const [movementBaselinePlacements, setMovementBaselinePlacements] = useState<Placement[]>([]);
   const t = messages[locale];
   const usableCells = useMemo(() => countUsableCells(board), [board]);
   const totalCells = board.length * (board[0]?.length ?? 0);
@@ -310,8 +311,15 @@ function App() {
   }
 
   function runSolver() {
-    const nextResult = solveInventory(board, counts, { maxSolutions: 1, timeLimitMs: 1000, mustUseItemIds });
+    const hasMovementBaseline = movementBaselinePlacements.length > 0;
+    const nextResult = solveInventory(board, counts, {
+      maxSolutions: 1,
+      timeLimitMs: hasMovementBaseline ? 3000 : 1000,
+      mustUseItemIds,
+      movementBaselinePlacements: hasMovementBaseline ? movementBaselinePlacements : undefined,
+    });
     setResult(nextResult);
+    setMovementBaselinePlacements(nextResult.solutions[0]?.placements ?? []);
   }
 
   function updateBackpackPreset(value: BackpackPresetId) {
@@ -319,6 +327,7 @@ function App() {
     if (!preset?.enabled) return;
     setBackpackPresetId(value);
     setBoard(createDefaultBoard(value));
+    setMovementBaselinePlacements([]);
     setResult(null);
   }
 
@@ -336,6 +345,7 @@ function App() {
     setCounts(Object.fromEntries(items.map((item) => [item.id, 0])));
     setCountInputs(Object.fromEntries(items.map((item) => [item.id, '0'])));
     setMustUseItemIds([]);
+    setMovementBaselinePlacements([]);
     setResult(null);
   }
 

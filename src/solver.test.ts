@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createDefaultBoard, createFullBoard } from './board';
 import { buildPlacementCache, compareCandidateScoresForDisplay, compareObjectiveScores, solveInventory } from './solver';
 import { getSelectedItemArea, summarizeSolverResult } from './solverDiagnostics';
-import type { Board } from './types';
+import type { Board, Placement } from './types';
 
 function boardFromRows(rows: string[]): Board {
   return rows.map((row) => [...row].map((cell) => cell === '.'));
@@ -25,6 +25,16 @@ function solutionSignature(result: ReturnType<typeof solveInventory>): string {
 
 function testCellIndex(row: number, col: number): number {
   return row * 9 + col;
+}
+
+function singleCellPlacement(row: number, col: number): Placement {
+  return {
+    itemId: 'P11',
+    rotation: 0,
+    row,
+    col,
+    cells: [{ row, col }],
+  };
 }
 
 describe('solver', () => {
@@ -483,11 +493,91 @@ describe('solver', () => {
     expect(new Set(signatures).size).toBe(2);
   });
 
+  it('prefers a movement baseline placement over signature order for equivalent objective solutions', () => {
+    const board = boardFromRows([
+      '..xxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+    ]);
+    const withoutBaseline = solveInventory(board, { P11: 1 }, { maxSolutions: 1, timeLimitMs: 100 });
+    const result = solveInventory(board, { P11: 1 }, {
+      maxSolutions: 1,
+      timeLimitMs: 100,
+      movementBaselinePlacements: [singleCellPlacement(0, 1)],
+    });
+
+    expect(withoutBaseline.solutions[0].placements[0]).toMatchObject({ itemId: 'P11', row: 0, col: 0 });
+    expect(result.solutions[0].placements[0]).toMatchObject({ itemId: 'P11', row: 0, col: 1 });
+    expect(result.retainedPlacementCount).toBe(1);
+    expect(result.movementCost).toBe(0);
+  });
+
+  it('ignores invalid or mismatched movement baseline placements', () => {
+    const board = boardFromRows([
+      '.xxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+    ]);
+    const mismatchedPlacement: Placement = {
+      itemId: 'P10',
+      rotation: 0,
+      row: 0,
+      col: 0,
+      cells: [{ row: 0, col: 0 }, { row: 1, col: 0 }],
+    };
+    const result = solveInventory(board, { P11: 1 }, {
+      maxSolutions: 1,
+      timeLimitMs: 100,
+      movementBaselinePlacements: [singleCellPlacement(0, 1), mismatchedPlacement],
+    });
+
+    expect(result.solutions[0].placements[0]).toMatchObject({ itemId: 'P11', row: 0, col: 0 });
+    expect(result.retainedPlacementCount).toBe(0);
+    expect(result.movementCost).toBe(1);
+  });
+
+  it('does not let movement preference beat the primary filled-cell objective', () => {
+    const board = boardFromRows([
+      '.xxxxxxxx',
+      '.xxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+    ]);
+    const result = solveInventory(board, { P10: 1, P11: 1 }, {
+      maxSolutions: 1,
+      timeLimitMs: 100,
+      movementBaselinePlacements: [singleCellPlacement(0, 0)],
+    });
+
+    expect(result.bestFilledCells).toBe(2);
+    expect(result.usedCounts).toEqual({ P10: 1 });
+    expect(result.retainedPlacementCount).toBe(0);
+    expect(result.movementCost).toBe(1);
+  });
+
   it('does not treat signature differences as objective score differences', () => {
     const highSignature = {
       mustUseFilledArea: 0,
       filledCells: 4,
       unusedItemCount: 1,
+      retainedPlacementCount: 0,
       signature: 'z-placement',
     };
     const lowSignature = {
@@ -497,6 +587,24 @@ describe('solver', () => {
 
     expect(compareObjectiveScores(highSignature, lowSignature)).toBe(0);
     expect(compareCandidateScoresForDisplay(highSignature, lowSignature)).toBeGreaterThan(0);
+  });
+
+  it('uses retained placement count as a display tie-breaker after objective score', () => {
+    const lowMovementCost = {
+      mustUseFilledArea: 0,
+      filledCells: 4,
+      unusedItemCount: 1,
+      retainedPlacementCount: 1,
+      signature: 'z-placement',
+    };
+    const highMovementCost = {
+      ...lowMovementCost,
+      retainedPlacementCount: 0,
+      signature: 'a-placement',
+    };
+
+    expect(compareObjectiveScores(lowMovementCost, highMovementCost)).toBe(0);
+    expect(compareCandidateScoresForDisplay(lowMovementCost, highMovementCost)).toBeLessThan(0);
   });
 
   it('returns deterministic first solution for the same input', () => {

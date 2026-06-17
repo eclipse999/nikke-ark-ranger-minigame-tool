@@ -40,6 +40,7 @@ export type SolverOptions = {
   maxSolutions?: number;
   timeLimitMs?: number;
   mustUseItemIds?: string[];
+  movementBaselinePlacements?: Placement[];
 };
 
 export type SolverResult = {
@@ -59,4 +60,6 @@ export type SolverResult = {
   provenOptimal: boolean;
   stopReason: SolverStopReason;
   searchedNodes: number;
+  retainedPlacementCount: number;
+  movementCost: number;
 };

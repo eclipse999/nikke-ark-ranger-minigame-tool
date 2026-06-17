@@ -3,7 +3,7 @@ import { createDefaultBoard, createFullBoard, countUsableCells } from './board';
 import { solveInventory } from './solver';
 import { getSelectedItemArea } from './solverDiagnostics';
 import { assertSolverResultIsLegal } from './solverTestUtils';
-import type { Board, SolverResult } from './types';
+import type { Board, SolverOptions, SolverResult } from './types';
 
 function createRng(seed: number): () => number {
   let state = seed | 0;
@@ -79,55 +79,78 @@ const irregularBoards: Board[] = [
 
 const testBoards = [createFullBoard(), createDefaultBoard(), ...irregularBoards];
 
+type FuzzCase = {
+  counts: Record<string, number>;
+  optionSets: Array<{ options: SolverOptions }>;
+};
+
+function generateFuzzCases(seed: number, caseCount: number): FuzzCase[] {
+  const rng = createRng(seed);
+  const cases: FuzzCase[] = [];
+
+  for (let caseIndex = 0; caseIndex < caseCount; caseIndex += 1) {
+    const counts: Record<string, number> = {};
+    for (const id of ALL_ITEM_IDS) {
+      const c = Math.floor(rng() * 6);
+      if (c > 0) {
+        counts[id] = c;
+      }
+    }
+    if (Object.keys(counts).length === 0) {
+      counts[ALL_ITEM_IDS[Math.floor(rng() * ALL_ITEM_IDS.length)]] = 1;
+    }
+
+    const availableForMustUse = Object.keys(counts);
+    const mustUseCount = Math.min(Math.floor(rng() * 3), availableForMustUse.length);
+    const mustUseItemIds = shuffle(availableForMustUse, rng).slice(0, mustUseCount);
+
+    const optionSets: Array<{ options: SolverOptions }> = [
+      { options: { maxSolutions: 4, timeLimitMs: 200 } },
+    ];
+
+    if (mustUseItemIds.length > 0) {
+      optionSets.push({
+        options: { maxSolutions: 4, timeLimitMs: 200, mustUseItemIds },
+      });
+    }
+
+    cases.push({ counts, optionSets });
+  }
+
+  return cases;
+}
+
+function assertFuzzCase(caseInput: FuzzCase): void {
+  for (const board of testBoards) {
+    const usableCells = countUsableCells(board);
+    if (usableCells === 0) continue;
+
+    for (const { options } of caseInput.optionSets) {
+      const result = solveInventory(board, caseInput.counts, options);
+      assertSolverResultIsLegal(board, caseInput.counts, result, options);
+
+      if (result.provenOptimal) {
+        expect(result.stopReason).toBe('complete');
+      }
+    }
+  }
+}
+
 describe('solver fuzz', () => {
   const SEED = 0x5eed;
   const FUZZ_CASES = 500;
+  const FUZZ_BATCH_SIZE = 100;
+  const fuzzCases = generateFuzzCases(SEED, FUZZ_CASES);
 
-  it(`runs ${FUZZ_CASES} deterministic fuzz cases per board`, () => {
-    const rng = createRng(SEED);
+  for (let batchStart = 0; batchStart < FUZZ_CASES; batchStart += FUZZ_BATCH_SIZE) {
+    const batchEnd = Math.min(batchStart + FUZZ_BATCH_SIZE, FUZZ_CASES);
 
-    for (let caseIndex = 0; caseIndex < FUZZ_CASES; caseIndex += 1) {
-      const counts: Record<string, number> = {};
-      for (const id of ALL_ITEM_IDS) {
-        const c = Math.floor(rng() * 6);
-        if (c > 0) {
-          counts[id] = c;
-        }
+    it(`runs deterministic fuzz cases ${batchStart + 1}-${batchEnd} per board`, () => {
+      for (const caseInput of fuzzCases.slice(batchStart, batchEnd)) {
+        assertFuzzCase(caseInput);
       }
-      if (Object.keys(counts).length === 0) {
-        counts[ALL_ITEM_IDS[Math.floor(rng() * ALL_ITEM_IDS.length)]] = 1;
-      }
-
-      const availableForMustUse = Object.keys(counts);
-      const mustUseCount = Math.min(Math.floor(rng() * 3), availableForMustUse.length);
-      const mustUseItemIds = shuffle(availableForMustUse, rng).slice(0, mustUseCount);
-
-      const optionSets: Array<{ label: string; options: Record<string, unknown> }> = [
-        { label: 'no must-use', options: { maxSolutions: 4, timeLimitMs: 200 } },
-      ];
-
-      if (mustUseItemIds.length > 0) {
-        optionSets.push({
-          label: 'with must-use',
-          options: { maxSolutions: 4, timeLimitMs: 200, mustUseItemIds },
-        });
-      }
-
-      for (const board of testBoards) {
-        const usableCells = countUsableCells(board);
-        if (usableCells === 0) continue;
-
-        for (const { options } of optionSets) {
-          const result = solveInventory(board, counts, options);
-          assertSolverResultIsLegal(board, counts, result, options as never);
-
-          if (result.provenOptimal) {
-            expect(result.stopReason).toBe('complete');
-          }
-        }
-      }
-    }
-  }, 120_000);
+    }, 90_000);
+  }
 
   it('maintains deterministic behavior across 100 repeated runs', () => {
     const rng = createRng(SEED);

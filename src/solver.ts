@@ -12,8 +12,11 @@ type CandidateScore = {
   mustUseFilledArea: number;
   filledCells: number;
   unusedItemCount: number;
+  retainedPlacementCount: number;
   signature: string;
 };
+
+type ObjectiveScore = Pick<CandidateScore, 'mustUseFilledArea' | 'filledCells' | 'unusedItemCount'>;
 
 type ScoredCandidate = {
   solution: CandidateSolution;
@@ -91,6 +94,12 @@ function toPlacement(placement: CachedPlacement): Placement {
     col: placement.col,
     cells: placement.cells,
   };
+}
+
+function placementSignature(placement: Placement): string {
+  return `${placement.itemId}:${placement.rotation}:${placement.row},${placement.col}:${placement.cells
+    .map((cell) => `${cell.row},${cell.col}`)
+    .join(';')}`;
 }
 
 function normalizeCount(value: number | undefined): number {
@@ -172,7 +181,7 @@ function candidateSignature(candidate: CandidateSolution): string {
     .join('|');
 }
 
-export function compareObjectiveScores(a: CandidateScore, b: CandidateScore): number {
+export function compareObjectiveScores(a: ObjectiveScore, b: ObjectiveScore): number {
   return (
     b.mustUseFilledArea - a.mustUseFilledArea ||
     b.filledCells - a.filledCells ||
@@ -183,11 +192,12 @@ export function compareObjectiveScores(a: CandidateScore, b: CandidateScore): nu
 export function compareCandidateScoresForDisplay(a: CandidateScore, b: CandidateScore): number {
   return (
     compareObjectiveScores(a, b) ||
+    b.retainedPlacementCount - a.retainedPlacementCount ||
     a.signature.localeCompare(b.signature)
   );
 }
 
-function isScoreBetterThan(a: CandidateScore, b: CandidateScore | null): boolean {
+function isScoreBetterThan(a: ObjectiveScore, b: ObjectiveScore | null): boolean {
   return b === null || compareObjectiveScores(a, b) < 0;
 }
 
@@ -208,16 +218,29 @@ function getUnusedItemCount(selectedCounts: Record<string, number>, usedCounts: 
   );
 }
 
+function getBaselinePlacementSignatures(placements: Placement[] | undefined): Set<string> {
+  return new Set((placements ?? []).map((placement) => placementSignature(placement)));
+}
+
+function getRetainedPlacementCount(candidate: CandidateSolution, baselinePlacementSignatures: Set<string>): number {
+  if (baselinePlacementSignatures.size === 0) {
+    return 0;
+  }
+
+  return candidate.placements.reduce(
+    (count, placement) => count + (baselinePlacementSignatures.has(placementSignature(placement)) ? 1 : 0),
+    0,
+  );
+}
+
 function makeCandidateScore(
   candidate: CandidateSolution,
-  selectedCounts: Record<string, number>,
-  usedCounts: Record<string, number>,
-  mustUseFilledArea: number,
+  objectiveScore: ObjectiveScore,
+  baselinePlacementSignatures: Set<string>,
 ): CandidateScore {
   return {
-    mustUseFilledArea,
-    filledCells: candidate.filledCells,
-    unusedItemCount: getUnusedItemCount(selectedCounts, usedCounts),
+    ...objectiveScore,
+    retainedPlacementCount: getRetainedPlacementCount(candidate, baselinePlacementSignatures),
     signature: candidateSignature(candidate),
   };
 }
@@ -382,6 +405,40 @@ function comparePlacements(
   );
 }
 
+function comparePlacementsWithBaseline(
+  a: CachedPlacement,
+  b: CachedPlacement,
+  remainingCounts: Record<string, number>,
+  placementCache: PlacementCache,
+  mustUseItems: Set<string>,
+  baselinePlacementSignatures: Set<string>,
+  preferInventoryPressure: boolean,
+): number {
+  const aKey = getPlacementSortKey(a, remainingCounts, placementCache, mustUseItems);
+  const bKey = getPlacementSortKey(b, remainingCounts, placementCache, mustUseItems);
+
+  const inventoryPressureComparison = bKey.remainingCount - aKey.remainingCount || bKey.area - aKey.area;
+  const areaComparison = bKey.area - aKey.area || aKey.remainingCount - bKey.remainingCount;
+  const retainedComparison =
+    Number(baselinePlacementSignatures.has(placementSignature(b))) -
+    Number(baselinePlacementSignatures.has(placementSignature(a)));
+
+  const primaryComparison = preferInventoryPressure
+    ? inventoryPressureComparison
+    : areaComparison;
+
+  return (
+    primaryComparison ||
+    bKey.mustUse - aKey.mustUse ||
+    retainedComparison ||
+    aKey.restriction - bKey.restriction ||
+    a.itemId.localeCompare(b.itemId) ||
+    a.rotation - b.rotation ||
+    a.row - b.row ||
+    a.col - b.col
+  );
+}
+
 export function solveInventory(
   board: Board,
   counts: Record<string, number>,
@@ -400,43 +457,55 @@ export function solveInventory(
   const placements: Placement[] = [];
   const usedCounts: Record<string, number> = {};
   const mustUseItems = getMustUseSet(options.mustUseItemIds);
+  const baselinePlacementSignatures = getBaselinePlacementSignatures(options.movementBaselinePlacements);
+  const hasMovementBaseline = baselinePlacementSignatures.size > 0;
   const totalMustUseArea = Object.entries(selectedCounts)
     .filter(([itemId]) => mustUseItems.has(itemId))
     .reduce((sum, [itemId, count]) => sum + getItemArea(itemId) * count, 0);
   const targetFilledCells = Math.min(selectedItemArea, usableCells);
   const tryNoSkipPass = settings.timeLimitMs > 0 && selectedItemArea > 0;
 
-  let bestScore: CandidateScore | null = null;
+  let bestScore: ObjectiveScore | null = null;
   let searchedNodes = 0;
   let timedOut = false;
   let passTimedOut = false;
   let shouldStop = false;
   let activeTimeLimitMs = settings.timeLimitMs;
 
-  function makeCurrentScore(filledCells: number, mustUseFilledArea: number): CandidateScore {
+  function makeCurrentObjectiveScore(filledCells: number, mustUseFilledArea: number): ObjectiveScore {
+    return {
+      mustUseFilledArea,
+      filledCells,
+      unusedItemCount: getUnusedItemCount(selectedCounts, usedCounts),
+    };
+  }
+
+  function makeCurrentCandidateScore(filledCells: number, objectiveScore: ObjectiveScore): CandidateScore {
     return makeCandidateScore(
       { filledCells, placements },
-      selectedCounts,
-      usedCounts,
-      mustUseFilledArea,
+      objectiveScore,
+      baselinePlacementSignatures,
     );
   }
 
   function remember(filledCells: number, mustUseFilledArea: number) {
-    const score = makeCurrentScore(filledCells, mustUseFilledArea);
+    const objectiveScore = makeCurrentObjectiveScore(filledCells, mustUseFilledArea);
 
-    if (bestScore !== null && compareObjectiveScores(score, bestScore) > 0) {
+    if (bestScore !== null && compareObjectiveScores(objectiveScore, bestScore) > 0) {
       return;
     }
 
-    if (isScoreBetterThan(score, bestScore)) {
-      bestScore = score;
+    if (isScoreBetterThan(objectiveScore, bestScore)) {
+      bestScore = objectiveScore;
       candidates.length = 0;
     }
+
+    const score = makeCurrentCandidateScore(filledCells, objectiveScore);
 
     addCandidate(candidates, { filledCells, placements }, score, settings.maxSolutions);
 
     if (
+      !hasMovementBaseline &&
       candidates.length >= settings.maxSolutions &&
       candidates[0]?.score.filledCells === targetFilledCells &&
       candidates[0]?.score.mustUseFilledArea >= totalMustUseArea
@@ -465,6 +534,7 @@ export function solveInventory(
         ),
       filledCells: filledCells + Math.min(freeCells, remainingArea),
       unusedItemCount: 0,
+      retainedPlacementCount: 0,
       signature: '',
     };
 
@@ -508,14 +578,24 @@ export function solveInventory(
     const pivotPlacements = placementCache.placementsByCell[pivotCellIndex]
       .filter((placement) => (remainingCounts[placement.itemId] ?? 0) > 0 && (placement.mask & occupiedMask) === 0n)
       .sort((a, b) =>
-        comparePlacements(
-          a,
-          b,
-          remainingCounts,
-          placementCache,
-          mustUseItems,
-          preferInventoryPressure,
-        ),
+        hasMovementBaseline
+          ? comparePlacementsWithBaseline(
+              a,
+              b,
+              remainingCounts,
+              placementCache,
+              mustUseItems,
+              baselinePlacementSignatures,
+              preferInventoryPressure,
+            )
+          : comparePlacements(
+              a,
+              b,
+              remainingCounts,
+              placementCache,
+              mustUseItems,
+              preferInventoryPressure,
+            ),
       );
 
     for (const cachedPlacement of pivotPlacements) {
@@ -568,10 +648,14 @@ export function solveInventory(
   }
 
   const bestSolution = candidates[0]?.solution;
+  const retainedPlacementCount = candidates[0]?.score.retainedPlacementCount ?? 0;
   const finalUsedCounts = getUsedCounts(bestSolution);
   const unusedCounts = getUnusedCounts(selectedCounts, finalUsedCounts);
   const mustUseCounts = getMustUseCounts(selectedCounts, finalUsedCounts, options.mustUseItemIds);
   const placedItemArea = bestSolution?.filledCells ?? 0;
+  const movementCost = hasMovementBaseline && bestSolution
+    ? Math.max(0, bestSolution.placements.length - retainedPlacementCount)
+    : 0;
 
   return {
     bestFilledCells: placedItemArea,
@@ -590,5 +674,7 @@ export function solveInventory(
     provenOptimal: !timedOut,
     stopReason: timedOut ? 'time-limit' : 'complete',
     searchedNodes,
+    retainedPlacementCount,
+    movementCost,
   };
 }
