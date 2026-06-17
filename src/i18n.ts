@@ -14,6 +14,7 @@ type Messages = {
   clearItems: string;
   clearMustUse: string;
   solve: string;
+  solving: string;
   language: string;
   quantity: string;
   mustUse: string;
@@ -64,6 +65,7 @@ export const messages: Record<Locale, Messages> = {
     clearItems: '清空道具',
     clearMustUse: '清除必用',
     solve: '執行最佳化',
+    solving: '計算中...',
     language: '語言',
     quantity: '數量',
     mustUse: '必用',
@@ -112,6 +114,7 @@ export const messages: Record<Locale, Messages> = {
     clearItems: 'Clear Items',
     clearMustUse: 'Clear Must-use',
     solve: 'Optimize',
+    solving: 'Optimizing...',
     language: 'Language',
     quantity: 'Qty',
     mustUse: 'Must-use',

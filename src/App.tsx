@@ -1,11 +1,11 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { backpackPresets, type BackpackPresetId } from './backpackPresets';
 import { cloneBoard, countUsableCells, createDefaultBoard, createFullBoard } from './board';
 import { messages, type Locale } from './i18n';
 import { getItemColor } from './itemColors';
 import { items } from './items';
-import { solveInventory } from './solver';
 import type { Board, Placement, SolverResult } from './types';
+import type { SolverWorkerRequest, SolverWorkerResponse } from './solverWorker';
 
 function ShapePreview({ cells, width, height }: { cells: { row: number; col: number }[]; width: number; height: number }) {
   const filled = new Set(cells.map((cell) => `${cell.row},${cell.col}`));
@@ -241,6 +241,9 @@ function App() {
   const [mustUseItemIds, setMustUseItemIds] = useState<string[]>([]);
   const [result, setResult] = useState<SolverResult | null>(null);
   const [movementBaselinePlacements, setMovementBaselinePlacements] = useState<Placement[]>([]);
+  const [isSolving, setIsSolving] = useState(false);
+  const solverWorkerRef = useRef<Worker | null>(null);
+  const solverRequestIdRef = useRef(0);
   const t = messages[locale];
   const usableCells = useMemo(() => countUsableCells(board), [board]);
   const totalCells = board.length * (board[0]?.length ?? 0);
@@ -264,7 +267,23 @@ function App() {
     return map;
   }, [currentSolution]);
 
+  useEffect(() => {
+    return () => {
+      solverRequestIdRef.current += 1;
+      solverWorkerRef.current?.terminate();
+      solverWorkerRef.current = null;
+    };
+  }, []);
+
+  function cancelActiveSolver() {
+    solverRequestIdRef.current += 1;
+    solverWorkerRef.current?.terminate();
+    solverWorkerRef.current = null;
+    setIsSolving(false);
+  }
+
   function updateCount(itemId: string, value: string) {
+    cancelActiveSolver();
     const digits = value.replace(/\D/g, '');
     const displayValue = digits === '' ? '' : digits.replace(/^0+(?=\d)/, '');
     const nextValue = displayValue === '' ? 0 : Math.max(0, Math.floor(Number(displayValue) || 0));
@@ -277,6 +296,7 @@ function App() {
   }
 
   function toggleMustUse(itemId: string, checked: boolean) {
+    cancelActiveSolver();
     setMustUseItemIds((current) => {
       if (checked) {
         return current.includes(itemId) ? current : [...current, itemId];
@@ -287,6 +307,7 @@ function App() {
   }
 
   function toggleCell(row: number, col: number) {
+    cancelActiveSolver();
     setBoard((current) => {
       const next = cloneBoard(current);
       next[row][col] = !next[row][col];
@@ -296,6 +317,7 @@ function App() {
   }
 
   function bulkOpenCells(cells: { row: number; col: number }[]) {
+    cancelActiveSolver();
     setBoard((current) => {
       const next = cloneBoard(current);
       let changed = false;
@@ -312,17 +334,63 @@ function App() {
 
   function runSolver() {
     const hasMovementBaseline = movementBaselinePlacements.length > 0;
-    const nextResult = solveInventory(board, counts, {
-      maxSolutions: 1,
-      timeLimitMs: hasMovementBaseline ? 3000 : 1000,
-      mustUseItemIds,
-      movementBaselinePlacements: hasMovementBaseline ? movementBaselinePlacements : undefined,
-    });
-    setResult(nextResult);
-    setMovementBaselinePlacements(nextResult.solutions[0]?.placements ?? []);
+    solverWorkerRef.current?.terminate();
+
+    const requestId = solverRequestIdRef.current + 1;
+    solverRequestIdRef.current = requestId;
+
+    const worker = new Worker(new URL('./solverWorker.ts', import.meta.url), { type: 'module' });
+    solverWorkerRef.current = worker;
+    setIsSolving(true);
+
+    worker.onmessage = (event: MessageEvent<SolverWorkerResponse>) => {
+      if (event.data.requestId !== solverRequestIdRef.current) {
+        return;
+      }
+
+      const nextResult = event.data.result;
+      setResult(nextResult);
+      setMovementBaselinePlacements(nextResult.solutions[0]?.placements ?? []);
+      setIsSolving(false);
+      worker.terminate();
+
+      if (solverWorkerRef.current === worker) {
+        solverWorkerRef.current = null;
+      }
+    };
+
+    worker.onerror = (event) => {
+      console.error('Solver worker failed', event);
+
+      if (requestId !== solverRequestIdRef.current) {
+        return;
+      }
+
+      setIsSolving(false);
+      worker.terminate();
+
+      if (solverWorkerRef.current === worker) {
+        solverWorkerRef.current = null;
+      }
+    };
+
+    const request: SolverWorkerRequest = {
+      requestId,
+      board,
+      counts,
+      options: {
+        maxSolutions: 1,
+        timeLimitMs: hasMovementBaseline ? 3000 : 1000,
+        mustUseItemIds,
+        movementBaselinePlacements: hasMovementBaseline ? movementBaselinePlacements : undefined,
+      },
+    };
+
+    worker.postMessage(request);
   }
 
   function updateBackpackPreset(value: BackpackPresetId) {
+    cancelActiveSolver();
     const preset = backpackPresets.find((entry) => entry.id === value);
     if (!preset?.enabled) return;
     setBackpackPresetId(value);
@@ -332,16 +400,19 @@ function App() {
   }
 
   function resetBoard() {
+    cancelActiveSolver();
     setBoard(createDefaultBoard(backpackPresetId));
     setResult(null);
   }
 
   function makeFullBoard() {
+    cancelActiveSolver();
     setBoard(createFullBoard());
     setResult(null);
   }
 
   function clearItems() {
+    cancelActiveSolver();
     setCounts(Object.fromEntries(items.map((item) => [item.id, 0])));
     setCountInputs(Object.fromEntries(items.map((item) => [item.id, '0'])));
     setMustUseItemIds([]);
@@ -350,6 +421,7 @@ function App() {
   }
 
   function clearMustUse() {
+    cancelActiveSolver();
     setMustUseItemIds([]);
     setResult(null);
   }
@@ -426,8 +498,8 @@ function App() {
                 {t.clearMustUse}
               </button>
             </div>
-            <button className="primary-button compact-button" type="button" onClick={runSolver}>
-              {t.solve}
+            <button className="primary-button compact-button" type="button" onClick={runSolver} disabled={isSolving}>
+              {isSolving ? t.solving : t.solve}
             </button>
           </div>
           <div className="item-list">
