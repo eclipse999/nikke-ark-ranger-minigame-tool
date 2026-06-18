@@ -17,6 +17,7 @@ const itemBaseShapes: Array<Pick<ItemDefinition, 'id' | 'baseShape'>> = [
   { id: 'P12', baseShape: ['.X.', 'XXX', '.X.'] },
   { id: 'P13', baseShape: ['XXX', '.X.'] },
   { id: 'P14', baseShape: ['XXX', 'XXX'] },
+  { id: 'P15', baseShape: ['XX.', '.XX'] },
 ];
 
 export function parseShape(shapeRows: string[]): Cell[] {

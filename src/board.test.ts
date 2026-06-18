@@ -52,8 +52,23 @@ describe('backpack presets', () => {
     expect(countUsableCells(createDefaultBoard('character-3'))).toBe(15);
   });
 
+  it('defines character 4 with the provided 9x9 layout', () => {
+    expect(boardToRows('character-4')).toEqual([
+      '000000000',
+      '000000000',
+      '000010000',
+      '001111100',
+      '000111000',
+      '000111000',
+      '000111000',
+      '000000000',
+      '000000000',
+    ]);
+    expect(countUsableCells(createDefaultBoard('character-4'))).toBe(15);
+  });
+
   it('keeps locked future character presets disabled', () => {
-    expect(backpackPresets.filter((preset) => !preset.enabled).map((preset) => preset.id)).toEqual(['character-4', 'character-5']);
+    expect(backpackPresets.filter((preset) => !preset.enabled).map((preset) => preset.id)).toEqual(['character-5']);
   });
 
   it('can rebuild the current selected preset for reset behavior', () => {
