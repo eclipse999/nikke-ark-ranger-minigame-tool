@@ -10,3 +10,4 @@ doc/
 .codex/
 AGENTS.md
 opencode.jsonc
+*.log

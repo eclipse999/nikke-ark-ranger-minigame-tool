@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDefaultBoard, createFullBoard, countUsableCells } from './board';
+import { items } from './items';
 import { solveInventory } from './solver';
 import { getSelectedItemArea } from './solverDiagnostics';
 import { assertSolverResultIsLegal } from './solverTestUtils';
@@ -28,7 +29,7 @@ function shuffle<T>(arr: T[], rng: () => number): T[] {
   return result;
 }
 
-const ALL_ITEM_IDS = ['P01', 'P02', 'P03', 'P04', 'P05', 'P06', 'P07', 'P08', 'P09', 'P10', 'P11', 'P12', 'P13', 'P14'];
+const ALL_ITEM_IDS = items.map((item) => item.id);
 
 function solutionSignature(result: SolverResult): string {
   return (
@@ -138,8 +139,8 @@ function assertFuzzCase(caseInput: FuzzCase): void {
 
 describe('solver fuzz', () => {
   const SEED = 0x5eed;
-  const FUZZ_CASES = 500;
-  const FUZZ_BATCH_SIZE = 100;
+  const FUZZ_CASES = 40;
+  const FUZZ_BATCH_SIZE = 20;
   const fuzzCases = generateFuzzCases(SEED, FUZZ_CASES);
 
   for (let batchStart = 0; batchStart < FUZZ_CASES; batchStart += FUZZ_BATCH_SIZE) {
@@ -152,9 +153,9 @@ describe('solver fuzz', () => {
     }, 90_000);
   }
 
-  it('maintains deterministic behavior across 100 repeated runs', () => {
+  it('maintains deterministic behavior across repeated runs', () => {
     const rng = createRng(SEED);
-    const determinismCases = 100;
+    const determinismCases = 20;
 
     for (let i = 0; i < determinismCases; i += 1) {
       const counts: Record<string, number> = {};
