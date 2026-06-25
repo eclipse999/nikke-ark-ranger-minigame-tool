@@ -69,7 +69,17 @@ export const backpackPresets: BackpackPreset[] = [
   },
   {
     id: 'character-5',
-    enabled: false,
-    rows: [],
+    enabled: true,
+    rows: [
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+      'xx...xxxx',
+      'xx....xxx',
+      'xx.....xx',
+      'xxx..xxxx',
+      'xxxx.xxxx',
+      'xxxxxxxxx',
+      'xxxxxxxxx',
+    ],
   },
 ];

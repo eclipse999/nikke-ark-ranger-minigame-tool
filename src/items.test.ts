@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createRotations, items } from './items';
 
 describe('items', () => {
-  it('defines P01 through P15 only', () => {
+  it('defines P01 through P16 only', () => {
     expect(items.map((item) => item.id)).toEqual([
       'P01',
       'P02',
@@ -19,6 +19,7 @@ describe('items', () => {
       'P13',
       'P14',
       'P15',
+      'P16',
     ]);
   });
 
@@ -42,5 +43,9 @@ describe('items', () => {
 
   it('keeps P15 as the provided four-cell zigzag shape', () => {
     expect(items.find((entry) => entry.id === 'P15')?.baseShape).toEqual(['XX.', '.XX']);
+  });
+
+  it('keeps P16 as the provided five-cell corner shape', () => {
+    expect(items.find((entry) => entry.id === 'P16')?.baseShape).toEqual(['XXX', 'X..', 'X..']);
   });
 });
